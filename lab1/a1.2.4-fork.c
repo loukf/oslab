@@ -10,7 +10,8 @@ int main(int argc, char *argv[]) {
         perror("fork");
         exit(1);
     } else if (p == 0) {
-        execv("a1.1-C", argv);
+        argv[0] = "a1.1-C";
+        execv(argv[0], argv);
         perror("execv");
         _exit(127);
     } else {

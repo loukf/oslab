@@ -9,7 +9,7 @@
 int main(int argc, char *argv[]) {
     int fd;
     fd = open(argv[1], O_RDONLY);
-    if (fd == -1) {
+    if (fd < 0) {
         perror("open");
         exit(1);
     }
@@ -21,7 +21,7 @@ int main(int argc, char *argv[]) {
         rcnt = read(fd,buff, sizeof(buff)-1);
         if (rcnt == 0) /* end‐of‐file */
             break;
-        if (rcnt == -1){ /* error */
+        if (rcnt < 0){ /* error */
             perror("read");
             exit(1);
         }
@@ -36,7 +36,7 @@ int main(int argc, char *argv[]) {
     sprintf(msg, "The character '%c' appears %d times in file %s.\n", c2c, count, argv[1]);
     int fw;
     fw = open(argv[2], O_CREAT | O_WRONLY | O_TRUNC, S_IRUSR | S_IWUSR);
-    if (fw == -1) {
+    if (fw < 0) {
         perror("open");
         exit(1);
     }

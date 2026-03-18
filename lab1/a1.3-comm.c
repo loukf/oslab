@@ -10,10 +10,7 @@ int main(int argc, char *argv[]) {
         perror("fork");
         exit(1);
     } else if (p == 0) {
-        argv[0] = "a1.1-C";
-        execv(argv[0], argv);
-        perror("execv");
-        _exit(127);
+        printf("Hello World\n");
     } else {
         wait(NULL);
     }
