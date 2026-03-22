@@ -7,6 +7,10 @@
 #include <string.h>
 
 int main(int argc, char *argv[]) {
+    if (argc != 4) {
+        fprintf(stderr, "Usage: %s <input-file> <output-file> <char>\n", argv[0]);
+        return 1;
+    }
     int fd;
     fd = open(argv[1], O_RDONLY);
     if (fd < 0) {
@@ -34,13 +38,13 @@ int main(int argc, char *argv[]) {
     close(fd);
     char msg[128];
     sprintf(msg, "The character '%c' appears %d times in file %s.\n", c2c, count, argv[1]);
-    int fw;
-    fw = open(argv[2], O_CREAT | O_WRONLY | O_TRUNC, S_IRUSR | S_IWUSR);
-    if (fw < 0) {
+    int fdw;
+    fdw = open(argv[2], O_CREAT | O_WRONLY | O_TRUNC, S_IRUSR | S_IWUSR);
+    if (fdw < 0) {
         perror("open");
         exit(1);
     }
-    write(fw,msg,strlen(msg));
-    close(fw);
+    write(fdw,msg,strlen(msg));
+    close(fdw);
     return 0;
 }

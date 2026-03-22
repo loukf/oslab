@@ -3,6 +3,10 @@
 #include <stdlib.h>
 
 int main(int argc, char *argv[]) {
+    if (argc != 4) {
+        fprintf(stderr, "Usage: %s <input-file> <output-file> <char>\n", argv[0]);
+        return 1;
+    }
     pid_t p = fork();
     int x;
     if (p < 0) {
