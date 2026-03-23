@@ -59,7 +59,7 @@ int main(int argc, char *argv[]) {
             fprintf(stderr, "Message too long\n");
             return 1;
         }
-        fdw = open(argv[2], O_CREAT | O_WRONLY | O_TRUNC, S_IRUSR | S_IWUSR);
+        fdw = open(argv[2], O_CREAT | O_WRONLY | O_TRUNC, 0644);
         if (fdw < 0) {
             perror("open");
             exit(1);

@@ -49,12 +49,11 @@ int main(int argc, char *argv[]) {
     for (int i = 0; i < P; ++i) {
         p = fork();
         active++;
-        sleep(1);
+        // sleep(1);
         if (p < 0) {
             perror("fork");
             exit(1);
         } else if (p == 0) {
-            // printf("Child %d with PID %d: ", i, getpid());
             int count = 0;
             char buff[size_read+1];
             ssize_t rcnt;
@@ -64,13 +63,13 @@ int main(int argc, char *argv[]) {
                 perror("read");
                 exit(1);
             }
-            // buff[rcnt] = '\0';
+            buff[rcnt] = '\0';
             for (int i = 0; i < rcnt; i++) {
                 if (buff[i] == c2c) {
                     count++;
                 }
             }
-            // printf("%s\t(%d)\n", buff, count);
+            // printf("Child %d with PID %d:\t(%d)\t%s\n", i, getpid(), count, buff);
             write(pfd[i][1], &count, sizeof(int));
             return 0;
         }
@@ -82,7 +81,6 @@ int main(int argc, char *argv[]) {
         res += child_count;
         active--;
     }
-    // printf("Res = %d\n", res);
     size_t size = 1024;
     char msg[size];
     int len = snprintf(msg, size, "The character '%c' appears %d times in file %s.\n",
@@ -91,7 +89,7 @@ int main(int argc, char *argv[]) {
         fprintf(stderr, "Message too long\n");
         return 1;
     }
-    fdw = open(argv[2], O_CREAT | O_WRONLY | O_TRUNC, S_IRUSR | S_IWUSR);
+    fdw = open(argv[2], O_CREAT | O_WRONLY | O_TRUNC, 0644);
     if (fdw < 0) {
         perror("open");
         exit(1);
