@@ -49,7 +49,9 @@ int main(int argc, char *argv[]) {
     } else {
         wait(NULL);
         int child_count;
-        read(pfd[0], &child_count, sizeof(int));
+        if (read(pfd[0], &child_count, sizeof(int)) != sizeof(int)) {
+            perror("read from pipe");
+        }
         size_t size = 1024;
         char msg[size];
         int len = snprintf(msg, size, "The character '%c' appears %d times in file %s.\n",

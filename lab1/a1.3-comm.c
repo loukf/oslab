@@ -77,7 +77,9 @@ int main(int argc, char *argv[]) {
     int child_count;
     for (int i = 0; i < P; ++i) {
         wait(NULL);
-        read(pfd[i][0], &child_count, sizeof(int));
+        if (read(pfd[i][0], &child_count, sizeof(int)) != sizeof(int)) {
+            perror("read from pipe");
+        }
         res += child_count;
         active--;
     }

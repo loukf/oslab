@@ -6,6 +6,10 @@
 
 long P = 0;
 
+void sighandler(int signum) {
+    printf("\nSIGINT: Current workers: %d.\n", P);
+}
+
 void sigahandler(int signum) {
     printf("\nSIGUSR1: Add worker. Current workers: %d.\n", ++P);
 }
@@ -19,25 +23,26 @@ void sigxhandler(int signum) {
 }
 
 int main(int argc, char *argv[]) {
-    if (argc == 4 || argc == 5) {
-        argv[4] = "0";
-        argv[5] = "0";
-    } else if (argc == 5) {
-        argv[5] = "0";
-    } else if (argc != 6) {
+    if (argc != 6) {
         fprintf(stderr, "Usage: %s <input-file> <output-file> "
-                "<char> <num_children> <sleep_seconds>\n", argv[0]);
+                "<char> <num_workers> <sleep_seconds>\n", argv[0]);
         return 1;
     }
-    struct sigaction sa1;
-    struct sigaction sa2;
-    sa1.sa_handler = sigahandler;
-    if (sigaction(SIGUSR1, &sa1, NULL) < 0) {
+    struct sigaction sa_status;
+    sa_status.sa_handler = sighandler;
+    if (sigaction(SIGINT, &sa_status, NULL) < 0) {
         perror("sigaction");
         exit(1);
     }
-    sa2.sa_handler = sigxhandler;
-    if (sigaction(SIGUSR2, &sa2, NULL) < 0) {
+    struct sigaction sa_add;
+    sa_add.sa_handler = sigahandler;
+    if (sigaction(SIGUSR1, &sa_add, NULL) < 0) {
+        perror("sigaction");
+        exit(1);
+    }
+    struct sigaction sa_remove;
+    sa_remove.sa_handler = sigxhandler;
+    if (sigaction(SIGUSR2, &sa_remove, NULL) < 0) {
         perror("sigaction");
         exit(1);
     }
@@ -53,7 +58,7 @@ int main(int argc, char *argv[]) {
         fprintf(stderr, "Invalid sleep time: %s\n", argv[2]);
         return 1;
     }
-    printf("Number of children: %d.\nSleep time: %ds.\n", P, y);
+    printf("Number of initial workers: %d.\nSleep time: %ds.\n", P, y);
     /*
      * CALL DISPATCHER
      */
