@@ -42,8 +42,8 @@ int main(int argc, char *argv[]) {
             exit(1);
         }
     }
-    size_t s = lseek(fd, 0, SEEK_END)-1;
-    size_t size_read = (s-1)/P+1;
+    off_t s = lseek(fd, 0, SEEK_END)-1;
+    off_t size_read = (s-1)/P+1;
     int res = 0;
     pid_t p;
     for (int i = 0; i < P; ++i) {

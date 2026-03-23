@@ -4,14 +4,13 @@
 #include <sys/stat.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 
 int main(int argc, char *argv[]) {
     if (argc != 4) {
         fprintf(stderr, "Usage: %s <input-file> <output-file> <char>\n", argv[0]);
         return 1;
     }
-    int fd;
+    int fd, fdw;
     fd = open(argv[1], O_RDONLY);
     if (fd < 0) {
         perror("open");
@@ -36,15 +35,21 @@ int main(int argc, char *argv[]) {
         }
     }
     close(fd);
-    char msg[128];
-    sprintf(msg, "The character '%c' appears %d times in file %s.\n", c2c, count, argv[1]);
-    int fdw;
+    size_t size = 1024;
+    char msg[size];
+    int len = snprintf(msg, size, "The character '%c' appears %d times in file %s.\n",
+            c2c, count, argv[1]);
+    if (len >= size) {
+        fprintf(stderr, "Message too long\n");
+        return 1;
+    }
+
     fdw = open(argv[2], O_CREAT | O_WRONLY | O_TRUNC, 0644);
     if (fdw < 0) {
         perror("open");
         exit(1);
     }
-    write(fdw,msg,strlen(msg));
+    write(fdw, msg, len);
     close(fdw);
     return 0;
 }

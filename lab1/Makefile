@@ -29,4 +29,4 @@ a1.4-worker: a1.4-worker.o
 	$(CC) $(CFLAGS) -c $<
     
 clean:
-	rm -f *.o a1.1-C a1.1-system_calls a1.2-fork a1.3-comm a1.4-frontend a1.4-dispatcher
+	rm -f *.o a1.1-C a1.1-system_calls a1.2-fork a1.3-comm a1.4-frontend a1.4-dispatcher a1.4-worker
