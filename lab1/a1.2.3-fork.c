@@ -52,11 +52,10 @@ int main(int argc, char *argv[]) {
         if (read(pfd[0], &child_count, sizeof(int)) != sizeof(int)) {
             perror("read from pipe");
         }
-        size_t size = 1024;
-        char msg[size];
-        int len = snprintf(msg, size, "The character '%c' appears %d times in file %s.\n",
+        char msg[1024];
+        int len = snprintf(msg, sizeof(msg), "The character '%c' appears %d times in file %s.\n",
                 c2c, child_count, argv[1]);
-        if (len >= size) {
+        if (len >= sizeof(msg)) {
             fprintf(stderr, "Message too long\n");
             return 1;
         }

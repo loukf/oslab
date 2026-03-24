@@ -6,6 +6,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <signal.h>
+#include <string.h>
 
 int active = 0;
 pid_t parent_pid;
@@ -43,21 +44,21 @@ int main(int argc, char *argv[]) {
         }
     }
     off_t s = lseek(fd, 0, SEEK_END)-1;
-    off_t size_read = (s-1)/P+1;
+    off_t size = (s-1)/P+1;
     int res = 0;
     pid_t p;
     for (int i = 0; i < P; ++i) {
         p = fork();
         active++;
-        // sleep(1);
+        sleep(1);
         if (p < 0) {
             perror("fork");
             exit(1);
         } else if (p == 0) {
             int count = 0;
-            char buff[size_read+1];
+            char buff[size+1];
             ssize_t rcnt;
-            rcnt = pread(fd,buff, sizeof(buff)-1, size_read*i);
+            rcnt = pread(fd,buff, sizeof(buff)-1, size*i);
             if (rcnt == 0) {} /* end‐of‐file */
             if (rcnt < 0) { /* error */
                 perror("read");
@@ -83,11 +84,10 @@ int main(int argc, char *argv[]) {
         res += child_count;
         active--;
     }
-    size_t size = 1024;
-    char msg[size];
-    int len = snprintf(msg, size, "The character '%c' appears %d times in file %s.\n",
+    char msg[1024];
+    int len = snprintf(msg, sizeof(msg), "The character '%c' appears %d times in file %s.\n",
                        c2c, res, argv[1]);
-    if (len >= size) {
+    if (len >= sizeof(msg)) {
         fprintf(stderr, "Message too long\n");
         return 1;
     }
