@@ -6,15 +6,15 @@
 
 long P = 0;
 
-void sighandler(int signum) {
+void sig_int_handler(int signum) {
     printf("\nSIGINT: Current workers: %d.\n", P);
 }
 
-void sigahandler(int signum) {
+void sig_add_handler(int signum) {
     printf("\nSIGUSR1: Add worker. Current workers: %d.\n", ++P);
 }
 
-void sigxhandler(int signum) {
+void sig_rmv_handler(int signum) {
     if (P == 0) {
         printf("\nSIGUSR2: Cannot remove any more workers. Current workers: %d.\n", P);
         return;
@@ -29,26 +29,26 @@ int main(int argc, char *argv[]) {
         return 1;
     }
     struct sigaction sa_status;
-    sa_status.sa_handler = sighandler;
+    sa_status.sa_handler = sig_int_handler;
     if (sigaction(SIGINT, &sa_status, NULL) < 0) {
         perror("sigaction");
         exit(1);
     }
     struct sigaction sa_add;
-    sa_add.sa_handler = sigahandler;
+    sa_add.sa_handler = sig_add_handler;
     if (sigaction(SIGUSR1, &sa_add, NULL) < 0) {
         perror("sigaction");
         exit(1);
     }
     struct sigaction sa_remove;
-    sa_remove.sa_handler = sigxhandler;
+    sa_remove.sa_handler = sig_rmv_handler;
     if (sigaction(SIGUSR2, &sa_remove, NULL) < 0) {
         perror("sigaction");
         exit(1);
     }
     printf("Current pid: %d.\n", getpid());
     char *endptr;
-    P = strtol(argv[4], &endptr, 10);
+    long P = strtol(argv[4], &endptr, 10);
     if (*endptr != '\0' || P < 0) {
         fprintf(stderr, "Invalid number of children: %s\n", argv[1]);
         return 1;
