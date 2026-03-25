@@ -1,21 +1,24 @@
 #include <unistd.h>
+#include <sys/wait.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <sys/wait.h>
+#include <string.h>
+
+char msg[1024];
 
 int main(int argc, char *argv[]) {
-    if (argc != 4) {
-        fprintf(stderr, "Usage: %s <input-file> <output-file> <char>\n", argv[0]);
-        return 1;
-    }
     pid_t p = fork();
     if (p < 0) {
-        perror("fork");
-        exit(1);
+        char err[] = "Error: cannot fork process\n";
+        write(2, err, strlen(err));
+        _exit(1);
     } else if (p == 0) {
-        printf("%d\n", getppid());
+        sprintf(msg, "Child PID=%d, Parent PID=%d.\n", getpid(), getppid());
+        write(1, msg, strlen(msg));
     } else {
         wait(NULL);
-        printf("%d\n", getpid());
+        sprintf(msg, "Child with PID=%d finished.\n", p);
+        write(1, msg, strlen(msg));
     }
+    return 0;
 }
