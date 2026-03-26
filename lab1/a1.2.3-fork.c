@@ -1,7 +1,5 @@
 #include <unistd.h>
 #include <fcntl.h>
-#include <sys/types.h>
-#include <sys/stat.h>
 #include <sys/wait.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -23,19 +21,20 @@ int main(int argc, char *argv[]) {
     char c2c = argv[3][0];
     fdr = open(argv[1], O_RDONLY);
     if (fdr < 0) {
-        print_err("Error: cannot open file to read\n");
+        print_err("error: cannot open file to read\n");
         _exit(1);
     }
-    int pfd[2];
-    if ((pipe(pfd)) < 0) {
-        print_err("Error: cannot create pipe\n");
+    int pipefd[2];
+    if ((pipe(pipefd)) < 0) {
+        print_err("error: cannot create pipe\n");
         _exit(1);
     }
     pid_t p = fork();
     if (p < 0) {
-        print_err("Error: cannot fork process\n");
+        print_err("error: cannot fork process\n");
         _exit(1);
     } else if (p == 0) {
+        close(pipefd[0]);
         int child_count = 0;
         char buff[1024];
         ssize_t rcnt;
@@ -53,21 +52,29 @@ int main(int argc, char *argv[]) {
                 }
             }
         }
-        write(pfd[1], &child_count, sizeof(int));
-    } else {
-        wait(NULL);
-        int count;
-        if (read(pfd[0], &count, sizeof(int)) != sizeof(int)) {
-            print_err("Error: cannot read from pipe\n");
+        if (write(pipefd[1], &child_count, sizeof(int)) != sizeof(int)) {
+            print_err("error: cannot write to pipe\n");
+            close(pipefd[1]);
             _exit(1);
         }
+        close(pipefd[1]);
+    } else {
+        close(pipefd[1]);
+        int count;
+        if (read(pipefd[0], &count, sizeof(int)) != sizeof(int)) {
+            print_err("error: cannot read from pipe\n");
+            close(pipefd[0]);
+            _exit(1);
+        }
+        close(pipefd[0]);
         close(fdr);
-        sprintf(msg, "The character '%c' appears %d times in file %s.\n", c2c, count, argv[1]);
+        wait(NULL);
         fdw = open(argv[2], O_CREAT | O_WRONLY | O_TRUNC, 0644);
         if (fdw < 0) {
-            print_err("Error: problem opening file to write\n");
+            print_err("error: problem opening file to write\n");
             _exit(1);
         }
+        sprintf(msg, "The character '%c' appears %d times in file %s.\n", c2c, count, argv[1]);
         write(fdw, msg, strlen(msg));
         close(fdw);
     }

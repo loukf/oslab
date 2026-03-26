@@ -13,7 +13,7 @@ int main(int argc, char *argv[]) {
     pid_t p = fork();
     int x;
     if (p < 0) {
-        print_err("Error: cannot fork process\n");
+        print_err("error: cannot fork process\n");
         _exit(1);
     } else if (p == 0) {
         x = 69;
