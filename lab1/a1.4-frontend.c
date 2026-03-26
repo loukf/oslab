@@ -1,5 +1,6 @@
 #include <unistd.h>
 #include <signal.h>
+#include <sys/wait.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -41,12 +42,13 @@ void help() {
 }                     
 
 int ext() {
-    if (kill(p, 9) < 0) {
+    if (kill(p, 2) < 0) {
         perror("kill");
         return -1;
     }
     return 0;
 }
+
 
 int add(const int x) {
     if (write(pipefd1[1], &x, sizeof(int)) != sizeof(int)) {
@@ -105,8 +107,8 @@ int main(int argc, char *argv[]) {
         close(pipefd1[1]);
         close(pipefd2[0]);
         char fd_str[2][16];
-        snprintf(fd_str[0], sizeof(fd_str[0]), "%d", pipefd1[0]);
-        snprintf(fd_str[1], sizeof(fd_str[1]), "%d", pipefd2[1]);
+        sprintf(fd_str[0], "%d", pipefd1[0]);
+        sprintf(fd_str[1], "%d", pipefd2[1]);
         char *new_argv[6] = {"a1.4-dispatcher", argv[1], argv[2], fd_str[0], fd_str[1], NULL};
         execv(new_argv[0], new_argv);
         perror("execv");
@@ -135,6 +137,7 @@ int main(int argc, char *argv[]) {
             }
             char *endptr;
             int x = (int)strtol(arg, &endptr, 10);
+            while (*endptr == ' ' || *endptr == '\t') *endptr++;
             if (*endptr != '\0' && *endptr != '\n') {
                 fprintf(stderr, "Invalid number of workers\n");
                 continue;
@@ -146,28 +149,19 @@ int main(int argc, char *argv[]) {
             if (buff[0] != 'a') x = -x;
             add(x);
         }
-        else if (strncmp(buff, "exit", 4) == 0) {
-            if (!check(arg)) {
-                ext(); return 0;
-            }
-        } else if (strncmp(buff, "info", 4) == 0) {
-            if (!check(arg)) {
+        else if (strncmp(buff, "exit", 4) == 0 && !check(arg)) {
+                ext(); break;
+        } else if (strncmp(buff, "info", 4) == 0 && !check(arg)) {
                 info();
-            }
-        } else if (strncmp(buff, "prog", 4) == 0) {
-            if (!check(arg)) {
+        } else if (strncmp(buff, "prog", 4) == 0 && !check(arg)) {
                 prog(argv[2][0], argv[1]);
-            }
-        } else if (strncmp(buff, "help", 4) == 0) {
-            if (!check(arg)) {
+        } else if (strncmp(buff, "help", 4) == 0 && !check(arg)) {
                 help();
-            }
-        } else if (strncmp(buff, "ps", 2) == 0) {
-            if (!check(arg-2)) {
+        } else if (strncmp(buff, "ps", 2) == 0 && !check(arg-2)) {
                 show_pstree(getpid());
-            }
         } else {
             check("a");
         }
     }
+    wait(NULL);
 }
