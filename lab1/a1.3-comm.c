@@ -41,9 +41,9 @@ int main(int argc, char *argv[]) {
         print_err("error: cannot open file to read\n");
         _exit(1);
     }
-    int pipefd[2];
+    int pipefd[P][2];
     for (int i = 0; i < P; ++i) {
-        if ((pipe(pipefd)) < 0) {
+        if ((pipe(pipefd[i])) < 0) {
             print_err("error: cannot create pipe\n");
             _exit(1);
         }
@@ -76,24 +76,24 @@ int main(int argc, char *argv[]) {
             }
             // buff[rcnt] = '\0';
             // printf("Child %d with PID %d:\t(%d)\t%s\n", i, getpid(), count, buff);
-            if (write(pipefd[1], &child_count, sizeof(int)) != sizeof(int)) {
+            if (write(pipefd[i][1], &child_count, sizeof(int)) != sizeof(int)) {
                 print_err("error: cannot write to pipe\n");
-                close(pipefd[1]);
+                close(pipefd[i][1]);
                 _exit(1);
             }
-            close(pipefd[1]);
+            close(pipefd[i][1]);
             _exit(0);
         }
     }
     int count;
     for (int i = 0; i < P; ++i) {
-        close(pipefd[1]);
-        if (read(pipefd[0], &count, sizeof(int)) != sizeof(int)) {
+        close(pipefd[i][1]);
+        if (read(pipefd[i][0], &count, sizeof(int)) != sizeof(int)) {
             print_err("error: cannot read from pipe\n");
-            close(pipefd[0]);
+            close(pipefd[i][0]);
             _exit(1);
         }
-        close(pipefd[0]);
+        close(pipefd[i][0]);
         res += count;
         active--;
     }
