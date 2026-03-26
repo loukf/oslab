@@ -1,5 +1,5 @@
 .*
 !lab*/
 !lab*/**
-lab*/a*.*
+lab*/a*
 !.gitignore
