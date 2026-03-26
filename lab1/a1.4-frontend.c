@@ -8,6 +8,19 @@ pid_t p;
 int pipefd1[2];
 int pipefd2[2];
 
+void show_pstree(pid_t p) {
+    int ret;
+    char cmd[1024];
+    snprintf(cmd, sizeof(cmd), "echo; echo; pstree -a -G -c -p %ld; echo; echo",
+            (long)p);
+    cmd[sizeof(cmd)-1] = '\0';
+    ret = system(cmd);
+    if (ret < 0) {
+        perror("system");
+        exit(104);
+    }
+}
+
 int check(char *s) {
     while (*s == ' ' || *s == '\t') s++;
     if (*s == '\n' || *s == '\0') {
@@ -20,7 +33,7 @@ int check(char *s) {
 void help() {
     printf("Available commands:\n"
            "   add <x>\tadd x workers (search processes)\n"
-           "   rem <x>\tremove x workers\n"
+           "   sub <x>\tremove x workers\n"
            "   info\t\tdisplay information about active workers\n"
            "   prog\t\tshow current search progress\n"
            "   help\t\tdisplay this help message\n"
@@ -114,7 +127,7 @@ int main(int argc, char *argv[]) {
         }
         char *arg = &buff[4];
         buff[rcnt] = '\0';
-        if (strncmp(buff, "add", 3) == 0 || strncmp(buff, "rem", 3) == 0) {
+        if (strncmp(buff, "add", 3) == 0 || strncmp(buff, "sub", 3) == 0) {
             while (*arg == ' ' || *arg == '\t') arg++;
             if (*arg == '\0' || *arg == '\n') {
                 fprintf(stderr, "Please provide a number of workers\n");
@@ -130,24 +143,28 @@ int main(int argc, char *argv[]) {
                 fprintf(stderr, "Number must be non-negative\n");
                 continue;
             }
-            if (buff[0] == 'r') x = -x;
+            if (buff[0] != 'a') x = -x;
             add(x);
         }
         else if (strncmp(buff, "exit", 4) == 0) {
             if (!check(arg)) {
                 ext(); return 0;
             }
-        } else if (strncmp(buff, "info\n", 4) == 0) {
+        } else if (strncmp(buff, "info", 4) == 0) {
             if (!check(arg)) {
                 info();
             }
-        } else if (strncmp(buff, "prog\n", 4) == 0) {
+        } else if (strncmp(buff, "prog", 4) == 0) {
             if (!check(arg)) {
                 prog(argv[2][0], argv[1]);
             }
-        } else if (strncmp(buff, "help\n", 4) == 0) {
+        } else if (strncmp(buff, "help", 4) == 0) {
             if (!check(arg)) {
                 help();
+            }
+        } else if (strncmp(buff, "ps", 2) == 0) {
+            if (!check(arg-2)) {
+                show_pstree(getpid());
             }
         } else {
             check("a");

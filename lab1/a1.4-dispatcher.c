@@ -4,7 +4,6 @@
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 
 int workers = 0;
 int occur = 79;
@@ -63,10 +62,33 @@ int main(int argc, char *argv[]) {
                 _exit(1);
             }
         } else {
-            workers += x;
-            if (workers < 0) {
-                workers = 0;
+            if (x > 0) {
+                for (int i = 0; i < x; ++i) {
+                    pid_t p = fork();
+                    /*
+                     * Must keep worker list instead of single p
+                     */
+                    if (p < 0) {
+                        perror("fork");
+                        _exit(1);
+                    } else if (p == 0) {
+                        execv("a1.4-worker", argv);
+                        perror("execv");
+                        _exit(127);
+                    }
+                    /*
+                     * Do dispatcher stuff
+                     */
+                }
+            } else if (x < 0) {
+                x = workers > -x ? x : -workers;
+                for (int i = 0; i < -x; ++i) {
+                    /*
+                     * Kill x workers
+                     */
+                }
             }
         }
+        workers += x;
     }
 }
