@@ -1,37 +1,72 @@
 #include <unistd.h>
+#include <signal.h>
+#include <fcntl.h>
+#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <signal.h>
+#include <string.h>
 
-void show_pstree(pid_t p) {
-    int ret;
-    char cmd[1024];
-    snprintf(cmd, sizeof(cmd), "echo; echo; pstree -a -G -c -p %ld; echo; echo",
-            (long)p);
-    cmd[sizeof(cmd)-1] = '\0';
-    ret = system(cmd);
-    if (ret < 0) {
-        perror("system");
-        exit(104);
+int workers = 0;
+int occur = 79;
+int percent = 11;
+
+int pipefd1[2];
+int pipefd2[2];
+
+void sig_info_handler(int signum) {
+    int x = workers;
+    if (write(pipefd2[1], &x, sizeof(int)) != sizeof(int)) {
+        perror("pipe");
+        _exit(1);
     }
 }
 
-void sighandler(int signum) {
-    printf("\nSIGINT: Still alive...\n");
+void sig_prog_handler(int signum) {
+    int res[2];
+    res[0] = percent;
+    res[1] = occur;
+    if (write(pipefd2[1], &res, 2*sizeof(int)) != 2*sizeof(int)) {
+        perror("pipe");
+        _exit(1);
+    }
 }
 
 int main(int argc, char *argv[]) {
-    struct sigaction sa;
-    sa.sa_handler = sighandler;
-    if (sigaction(SIGINT, &sa, NULL) < 0) {
+    if (argc != 5) {
+        fprintf(stderr, "error: Bad dispatcher initialization\n");
+        return 1;
+    }
+    char *endptr;
+    pipefd1[0] = (int)strtol(argv[3], &endptr, 10);
+    pipefd2[1] = (int)strtol(argv[4], &endptr, 10);
+    if (*endptr != '\0') {
+        fprintf(stderr, "error: Invalid pipe FD: %s\n");
+        return 1;
+    }
+    struct sigaction sa_info;
+    sa_info.sa_handler = sig_info_handler;
+    if (sigaction(SIGUSR1, &sa_info, NULL) < 0) {
         perror("sigaction");
         exit(1);
     }
-
-    pid_t p = getpid();
-    show_pstree(p);
-    printf("%d\n", p);
+    struct sigaction sa_prog;
+    sa_prog.sa_handler = sig_prog_handler;
+    if (sigaction(SIGUSR2, &sa_prog, NULL) < 0) {
+        perror("sigaction");
+        exit(1);
+    }
     while (1) {
-        sleep(1);
+        int x = 0;
+        if (read(pipefd1[0], &x, sizeof(int)) != sizeof(int)) {
+            if (errno != EINTR) {
+                perror("pipe");
+                _exit(1);
+            }
+        } else {
+            workers += x;
+            if (workers < 0) {
+                workers = 0;
+            }
+        }
     }
 }
