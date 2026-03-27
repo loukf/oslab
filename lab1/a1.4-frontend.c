@@ -5,14 +5,28 @@
 #include <stdlib.h>
 #include <string.h>
 
+# define CHUNK 1024
+
 pid_t p;
 int pipefd1[2];
 int pipefd2[2];
 
+void create_dispatcher(const char *input,const char *c2c) {
+    close(pipefd1[1]);
+    close(pipefd2[0]);
+    char read[16], write[16];
+    snprintf(read, sizeof(read), "%d", pipefd1[0]);
+    snprintf(write, sizeof(write), "%d", pipefd2[1]);
+    char *argv[6] = {"a1.4-dispatcher", (char *)input, (char *)c2c, read, write, NULL};
+    execv(argv[0], argv);
+    perror("execv");
+    _exit(127);
+}
+
 void show_pstree(pid_t p) {
     int ret;
-    char cmd[1024];
-    snprintf(cmd, sizeof(cmd), "echo; echo; pstree -a -G -c -p %ld; echo; echo",
+    char cmd[CHUNK];
+    snprintf(cmd, sizeof(cmd), "echo; pstree -a -G -c -p %ld; echo",
             (long)p);
     cmd[sizeof(cmd)-1] = '\0';
     ret = system(cmd);
@@ -49,7 +63,6 @@ int ext() {
     return 0;
 }
 
-
 int add(const int x) {
     if (write(pipefd1[1], &x, sizeof(int)) != sizeof(int)) {
         perror("pipe");
@@ -72,13 +85,13 @@ int info() {
     return 0;
 }
 
-int prog(const char c2c, const char *input) {
+int prog(const char *input, const char c2c) {
     int res[2];
     if (kill(p, SIGUSR2) < 0) {
         perror("kill");
-        return -1;
+        _exit(1);
     }
-    if (read(pipefd2[0], &res, 2 * sizeof(int)) != 2 * sizeof(int)) {
+    if (read(pipefd2[0], &res, sizeof(res)) != sizeof(res)) {
         perror("pipe");
         _exit(1);
     }
@@ -104,20 +117,12 @@ int main(int argc, char *argv[]) {
         perror("fork");
         _exit(1);
     } else if (p == 0) {
-        close(pipefd1[1]);
-        close(pipefd2[0]);
-        char fd_str[2][16];
-        sprintf(fd_str[0], "%d", pipefd1[0]);
-        sprintf(fd_str[1], "%d", pipefd2[1]);
-        char *new_argv[6] = {"a1.4-dispatcher", argv[1], argv[2], fd_str[0], fd_str[1], NULL};
-        execv(new_argv[0], new_argv);
-        perror("execv");
-        _exit(127);
+        create_dispatcher(argv[1], argv[2]);
     }
     close(pipefd1[0]);
     close(pipefd2[1]);
     ssize_t rcnt;
-    char buff[1024];
+    char buff[CHUNK];
     for (;;) {
         write(1,"> ", 2);
         rcnt = read(0, buff, sizeof(buff)-1);
@@ -149,15 +154,20 @@ int main(int argc, char *argv[]) {
             if (buff[0] != 'a') x = -x;
             add(x);
         }
-        else if (strncmp(buff, "exit", 4) == 0 && !check(arg)) {
-                ext(); break;
-        } else if (strncmp(buff, "info", 4) == 0 && !check(arg)) {
-                info();
-        } else if (strncmp(buff, "prog", 4) == 0 && !check(arg)) {
-                prog(argv[2][0], argv[1]);
-        } else if (strncmp(buff, "help", 4) == 0 && !check(arg)) {
-                help();
-        } else if (strncmp(buff, "ps", 2) == 0 && !check(arg-2)) {
+        else if (strncmp(buff, "exit", 4) == 0) {
+            if (check(arg)) continue;
+            ext(); break;
+        } else if (strncmp(buff, "info", 4) == 0) {
+            if (check(arg)) continue;
+            info();
+        } else if (strncmp(buff, "prog", 4) == 0) {
+            if (check(arg)) continue;
+            prog(argv[1], argv[2][0]);
+        } else if (strncmp(buff, "help", 4) == 0) {
+            if (check(arg)) continue;
+            help();
+        } else if (strncmp(buff, "ps", 2) == 0) {
+            if (check(arg-2)) continue;
                 show_pstree(getpid());
         } else {
             check("a");
