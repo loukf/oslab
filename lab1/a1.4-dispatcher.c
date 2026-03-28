@@ -27,15 +27,15 @@ int term(int n) {
 
 void sig_info_handler(int signum) {
     if (write(front_pipefd2[1], &current_w, sizeof(int)) != sizeof(int)) {
-            perror("pipe_dispatcher");
-            term(1);
+        perror("pipe_dispatcher");
+        term(1);
     }
 }
 
 void sig_prog_handler(int signum) {
     if (write(front_pipefd2[1], &res, sizeof(res)) != sizeof(res)) {
-            perror("pipe_dispatcher");
-            term(1);
+        perror("pipe_dispatcher");
+        term(1);
     }
 }
 

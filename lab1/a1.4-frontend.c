@@ -70,8 +70,8 @@ int ext() {
 
 int add(const int x) {
     if (write(pipefd1[1], &x, sizeof(int)) != sizeof(int)) {
-            perror("pipe_frontend");
-            _exit(1);
+        perror("pipe_frontend");
+        _exit(1);
     }
     return 0;
 }
@@ -79,12 +79,12 @@ int add(const int x) {
 int info() {
     int x;
     if (kill(p, SIGUSR1) < 0) {
-            perror("kill");
-            return -1;
+        perror("kill");
+        return -1;
     }
     if (read(pipefd2[0], &x, sizeof(int)) != sizeof(int)) {
-            perror("pipe_frontend");
-            _exit(1);
+        perror("pipe_frontend");
+        _exit(1);
     }
     fprintf(stdout, "Concurrent workers: %d\n", x);
     return 0;
@@ -97,8 +97,8 @@ int prog(const char *input, const char c2c) {
         _exit(1);
     }
     if (read(pipefd2[0], &res, sizeof(res)) != sizeof(res)) {
-            perror("pipe_frontend");
-            _exit(1);
+        perror("pipe_frontend");
+        _exit(1);
     }
     fprintf(stdout, "Progress: %d%% - %d instances of the character '%c' found so far in %s\n", res[0], res[1], c2c, input);
     return 0;
@@ -182,7 +182,7 @@ int main(int argc, char *argv[]) {
             help();
         } else if (strncmp(buff, "ps", 2) == 0) {
             if (check(arg-1)) continue;
-                show_pstree(getpid());
+            show_pstree(getpid());
         } else {
             check("a");
         }
