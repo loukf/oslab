@@ -5,8 +5,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
-# define CHUNK 1024
+#include "config.h"
 
 pid_t p;
 int pipefd1[2];

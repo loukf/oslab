@@ -4,9 +4,7 @@
 #include <sys/wait.h>
 #include <stdio.h>
 #include <stdlib.h>
-
-#define MAX_W 508
-#define CHUNK_NUM 5000
+#include "config.h"
 
 typedef struct {
     int id;
