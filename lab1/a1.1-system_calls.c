@@ -6,7 +6,9 @@
 #include <stdlib.h>
 #include <string.h>
 
-char msg[1024];
+#define CHUNK 1024
+
+char msg[CHUNK];
 
 void print_err(const char *s) {
     write(2, s, strlen(s));
@@ -26,7 +28,7 @@ int main(int argc, char *argv[]) {
         _exit(1);
     }
     int count = 0;
-    char buff[1024];
+    char buff[CHUNK];
     ssize_t rcnt;
     for (;;) {
         rcnt = read(fdr, buff, sizeof(buff)-1);
@@ -36,7 +38,8 @@ int main(int argc, char *argv[]) {
             print_err("error: problem reading from input file\n");
             _exit(1);
         }
-        for (int i = 0; i < rcnt; i++) {
+        buff[rcnt] = '\0';
+        for (int i = 0; i < rcnt; ++i) {
             if (buff[i] == c2c) {
                 count++;
             }

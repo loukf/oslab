@@ -42,7 +42,7 @@ int main(int argc, char *argv[]) {
             rcnt = read(fdr, buff, sizeof(buff)-1);
             if (rcnt == 0) /* end‐of‐file */
                 break;
-            if (rcnt < 0){ /* error */
+            if (rcnt < 0) { /* error */
                 print_err("Eror: problem reading from input file\n");
                 _exit(1);
             }

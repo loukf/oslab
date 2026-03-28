@@ -1,9 +1,9 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <sys/wait.h>
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <signal.h>
 #include <string.h>
 
 char msg[1024];
@@ -16,7 +16,7 @@ void print_err(const char *s) {
 
 void sighandler(int signum) {
     if (getpid() != parent_pid) return;
-    sprintf(msg, "\nSIGINT: %d child process(es) active\n", active);
+    sprintf(msg, "\nSIGINT: %3d child process(es) active\n", active);
     write(1, msg, strlen(msg));
 }
 
@@ -28,12 +28,13 @@ int main(int argc, char *argv[]) {
     }
     struct sigaction sa;
     sa.sa_handler = sighandler;
+    sa.sa_flags = SA_RESTART;
     if (sigaction(SIGINT, &sa, NULL) < 0) {
         print_err("error: sigaction failed\n");
         _exit(1);
     }
     parent_pid = getpid();
-    int P = 10;
+    int P = 13;
     int fdr, fdw;
     char c2c = argv[3][0];
     fdr = open(argv[1], O_RDONLY);
@@ -48,34 +49,38 @@ int main(int argc, char *argv[]) {
             _exit(1);
         }
     }
-    off_t s = lseek(fdr, 0, SEEK_END)-1;
-    off_t size = (s-1)/P+1;
+    long long end = lseek(fdr, 0, SEEK_END);
+    if (end < 0) {
+        print_err("error: lseek failed\n");
+        _exit(1);
+    }
+    off_t offset = (end-1)/P+1;
     int res = 0;
-    pid_t p;
     for (int i = 0; i < P; ++i) {
         active++;
-        p = fork();
+        pid_t p = fork();
         sleep(1);
         if (p < 0) {
             print_err("error: cannot fork process\n");
             _exit(1);
         } else if (p == 0) {
             int child_count = 0;
-            char buff[size+1];
+            char buff[offset+1];
             ssize_t rcnt;
-            rcnt = pread(fdr, buff, sizeof(buff)-1, size*i);
-            if (rcnt == 0) {} /* end‐of‐file */
+            rcnt = pread(fdr, buff, sizeof(buff)-1, offset*i);
+            if (rcnt == 0) /* end‐of‐file */
+                break;
             if (rcnt < 0) { /* error */
                 print_err("error: problem reading from input file\n");
                 _exit(1);
             }
-            for (int i = 0; i < rcnt; i++) {
+            for (int i = 0; i < rcnt; ++i) {
                 if (buff[i] == c2c) {
                     child_count++;
                 }
             }
-            // buff[rcnt] = '\0';
-            // printf("Child %d with PID %d:\t(%d)\t%s\n", i, getpid(), count, buff);
+            buff[rcnt] = '\0';
+            // printf("Child %02d with PID %d: (%d)\t%s\n", i, getpid(), child_count, buff);
             if (write(pipefd[i][1], &child_count, sizeof(int)) != sizeof(int)) {
                 print_err("error: cannot write to pipe\n");
                 close(pipefd[i][1]);

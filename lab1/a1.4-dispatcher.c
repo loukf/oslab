@@ -1,42 +1,202 @@
 #include <unistd.h>
-#include <signal.h>
 #include <fcntl.h>
 #include <errno.h>
 #include <sys/wait.h>
 #include <stdio.h>
 #include <stdlib.h>
 
-int workers = 0;
-int occur = 79;
-int percent = 11;
+#define MAX_W 508
+#define CHUNK_NUM 5000
 
-int pipefd1[2];
-int pipefd2[2];
+typedef struct {
+    int id;
+    int pid;
+    int status; // 1 = initialized, 0 = uninitialized or terminated
+    int pipefd1[2];
+    int pipefd2[2];
+} Worker;
 
-pid_t pid[1024];
+int current_w = 0;
+int res[2] = {0, 0};
 
-// void sig_int_handler(int signum) {
-//     for (int i = 0; i < workers; ++i) {
-//         kill(pid[i], SIGTERM);
-//     }
-    // while (wait(NULL) > 0);
+int front_pipefd1[2];
+int front_pipefd2[2];
+
+int term(int n) {
+    if (kill(getppid(), n == 0 ? SIGTERM : SIGINT) < 0) {
+        if (errno != ESRCH) perror("kill");
+    }
+    exit(n);
 }
 
 void sig_info_handler(int signum) {
-    int x = workers;
-    if (write(pipefd2[1], &x, sizeof(int)) != sizeof(int)) {
-        perror("pipe");
-        _exit(1);
+    if (write(front_pipefd2[1], &current_w, sizeof(int)) != sizeof(int)) {
+            perror("pipe_dispatcher");
+            term(1);
     }
 }
 
 void sig_prog_handler(int signum) {
-    int res[2];
-    res[0] = percent;
-    res[1] = occur;
-    if (write(pipefd2[1], &res, 2*sizeof(int)) != 2*sizeof(int)) {
-        perror("pipe");
-        _exit(1);
+    if (write(front_pipefd2[1], &res, sizeof(res)) != sizeof(res)) {
+            perror("pipe_dispatcher");
+            term(1);
+    }
+}
+
+pid_t exec_worker(const char *input, const char *c2c, Worker *w) {
+    if ((pipe(w->pipefd1)) < 0) {
+        perror("pipe_dispatcher");
+        term(1);
+    }
+    if ((pipe(w->pipefd2)) < 0) {
+        perror("pipe_dispatcher");
+        term(1);
+    }
+    pid_t p = fork();
+    if (p < 0) {
+        perror("fork");
+        term(1);
+    } else if (p == 0) {
+        close(front_pipefd1[0]);
+        close(front_pipefd2[1]);
+        close(w->pipefd1[1]);
+        close(w->pipefd2[0]);
+        char read[16], write[16], myid[16];
+        snprintf(read, sizeof(read), "%d", w->pipefd1[0]);
+        snprintf(write, sizeof(write), "%d", w->pipefd2[1]);
+        snprintf(myid, sizeof(myid), "%d", w->id);
+        char *argv[7] = {"a1.4-worker", (char *)input, (char *)c2c, read, write, myid, NULL};
+        execv(argv[0], argv);
+        perror("execv");
+        term(127);
+    }
+    close(w->pipefd1[0]);
+    close(w->pipefd2[1]);
+    w->pid = p;
+    w->status = 1;
+    current_w++;
+    return p;
+}
+
+pid_t kill_worker(Worker *w) {
+    close(w->pipefd1[1]);
+    close(w->pipefd2[0]);
+    if (w->status == 0) {
+        return -1;
+    }
+    kill(w->pid, SIGTERM);
+    w->status = 0;
+    current_w--;
+    return w->pid;
+}
+
+int calculate(const int *chunks, const int occur) {
+    int done = 0;
+    int flag = 1;
+    for (int i = 0; i < CHUNK_NUM; ++i) {
+        if (chunks[i] == 1) done++;
+        else flag = 0;
+    }
+    res[0] = (done*100)/CHUNK_NUM;
+    res[1] += occur;
+    return flag;
+}
+
+void reap_workers(Worker *workers) {
+    int status;
+    pid_t pid;
+    for (int i = 0; i < MAX_W; i++) {
+        if (workers[i].status == 0) continue;
+        pid = waitpid(workers[i].pid, &status, WNOHANG);
+        if (pid == 0) continue;
+        if (pid < 0 && errno != ECHILD) {
+            perror("waitpid");
+            exit(1);
+        }
+        kill_worker(&workers[i]);
+    }
+}
+
+int assign_work(int *chunks, const int chunk_size, Worker *workers) {
+    int result = 0;
+    int busy = 0;
+    for (int i = 0; i < CHUNK_NUM; ++i) {
+        if (chunks[i] != 0) continue;
+        while (busy < MAX_W && workers[busy].status == 0) {
+            busy++;
+        }
+        if (busy >= MAX_W) break;
+        int offset = i*chunk_size;
+        int at[2] = {offset, chunk_size};
+        if (write(workers[busy].pipefd1[1], &at, sizeof(at)) != sizeof(at)) {
+            if (errno != EPIPE && errno != EBADF) {
+                perror("pipe_dispatcher");
+                _exit(1);
+            }
+        }
+        int x;
+        if (read(workers[busy].pipefd2[0], &x, sizeof(int)) != sizeof(int)) {
+            if (errno != EINTR && errno != EPIPE && errno == EBADF) {
+                perror("pipe_dispatcher");
+                _exit(1);
+            }
+        }
+        chunks[i] = 1;
+        result += x;
+        busy++;
+    }
+    return result;
+}
+
+void dispatch(const char *input, const char *c2c, Worker *workers) {
+    /* CHATGPT CODE ALERT */
+    static int flags_set = 0;
+    if (!flags_set) {
+        // Set pipe non-blocking once
+        int flags = fcntl(front_pipefd1[0], F_GETFL, 0);
+        fcntl(front_pipefd1[0], F_SETFL, flags | O_NONBLOCK);
+        flags_set = 1;
+    }
+
+    int P;
+    ssize_t n = read(front_pipefd1[0], &P, sizeof(int));
+    if (n == -1) {
+        if (errno != EAGAIN && errno != EWOULDBLOCK && errno != EINTR) {
+            perror("pipe_dispatcher");
+            term(1);
+        }
+        // No data, just continue
+        return;
+    } else if (n != sizeof(int)) {
+        fprintf(stderr, "Partial read from pipe\n");
+        return;
+    }
+    /* CHATGPT CODE END */
+
+    // int P = 0;
+    // if (read(front_pipefd1[0], &P, sizeof(int)) != sizeof(int)) {
+    //     if (errno != EINTR) {
+    //         perror("pipe_dispatcher");
+    //         term(1);
+    //     }
+    // }
+    if (P > 0) {
+        int to_spawn = P;
+        for (int i = 0; i < MAX_W && to_spawn > 0; ++i) {
+            if (workers[i].status == 1) continue;
+            exec_worker(input, c2c, &workers[i]);
+            to_spawn--;
+        }
+        if (to_spawn > 0) {
+            fprintf(stderr, "(no more available workers - reached max value of %d)\n> ", MAX_W);
+        }
+    } else if (P < 0) {
+        int to_kill = -P;
+        for (int i = 0; i < MAX_W && to_kill > 0; ++i) {
+            if (workers[i].status == 0) continue;
+            kill_worker(&workers[i]);
+            to_kill--;
+        }
     }
 }
 
@@ -46,75 +206,56 @@ int main(int argc, char *argv[]) {
         return 1;
     }
     char *endptr;
-    pipefd1[0] = (int)strtol(argv[3], &endptr, 10);
-    pipefd2[1] = (int)strtol(argv[4], &endptr, 10);
+    front_pipefd1[0] = (int)strtol(argv[3], &endptr, 10);
     if (*endptr != '\0') {
-        fprintf(stderr, "error: Invalid pipe FD: %s\n");
+        fprintf(stderr, "error: Invalid pipe FD: %s\n", argv[3]);
         return 1;
     }
-    // struct sigaction sa;
-    // sa.sa_handler = sig_int_handler;
-    // if (sigaction(SIGINT, &sa, NULL) < 0) {
-    //     perror("sigaction");
-    //     exit(1);
-    // }
+    front_pipefd2[1] = (int)strtol(argv[4], &endptr, 10);
+    if (*endptr != '\0') {
+        fprintf(stderr, "error: Invalid pipe FD: %s\n", argv[4]);
+        return 1;
+    }
     struct sigaction sa_info;
     sa_info.sa_handler = sig_info_handler;
+    sa_info.sa_flags = SA_RESTART;
     if (sigaction(SIGUSR1, &sa_info, NULL) < 0) {
         perror("sigaction");
-        exit(1);
+        term(1);
     }
     struct sigaction sa_prog;
     sa_prog.sa_handler = sig_prog_handler;
+    sa_prog.sa_flags = SA_RESTART;
     if (sigaction(SIGUSR2, &sa_prog, NULL) < 0) {
         perror("sigaction");
-        exit(1);
+        term(1);
     }
-    while (1) {
-        while (waitpid(-1, NULL, WNOHANG) > 0) {
-            workers--;
-        }
-        int x = 0;
-        if (read(pipefd1[0], &x, sizeof(int)) != sizeof(int)) {
-            if (errno != EINTR) {
-                perror("pipe");
-                _exit(1);
-            }
-        } else if (x > 0) {
-            for (int i = 0; i < x; ++i) {
-                pid_t p = fork();
-                if (p < 0) {
-                    perror("fork");
-                    _exit(1);
-                } else if (p == 0) {
-                    close(pipefd1[0]);
-                    close(pipefd2[1]);
-                    argv[0] = "a1.4-worker";
-                    argv[3] = "67";
-                    argv[4] = NULL;
-                    execv(argv[0], argv);
-                    perror("execv");
-                    _exit(127);
-                }
-                pid[workers+i] = p;
-                /*
-                 * Do dispatcher stuff
-                 */
-            }
-        } else if (x < 0) {
-            int y = -x;
-            if (y > workers) y = workers;
-            y = workers > y ? y : workers;
-            x = -y;
-            for (int i = 0; i < y; ++i) {
-                if (kill(pid[workers - i - 1], 9) < 0) {
-                    perror("kill");
-                    exit(1);
-                }
-            }
-            workers -= y;
-            continue;
-        }
-        workers += x;
+    Worker workers[MAX_W];
+    for (int i = 0; i < MAX_W; ++i) {
+        workers[i].id = i;
+        workers[i].status = 0;
     }
+    int fdr;
+    fdr = open(argv[1], O_RDONLY);
+    if (fdr < 0) {
+        perror("read");
+        term(1);
+    }
+    long long end = lseek(fdr, 0, SEEK_END);
+    if (end < 0) {
+        perror("lseek");
+        term(1);
+    }
+    off_t chunk_size = (end-1)/CHUNK_NUM+1;
+    int chunks[CHUNK_NUM] = {0};
+    int finish = 0;
+    while (!finish) {
+        reap_workers(workers);
+        dispatch(argv[1], argv[2], workers);
+        int occur = assign_work(chunks, chunk_size, workers);
+        finish = calculate(chunks, occur);
+    }
+    fprintf(stdout, "Program finished!\n");
+    fprintf(stdout, "The character '%c' appears %d times in file %s.\n", argv[2][0], res[1], argv[1]);
+    term(0);
 }

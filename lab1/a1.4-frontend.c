@@ -1,4 +1,5 @@
 #include <unistd.h>
+#include <errno.h>
 #include <signal.h>
 #include <sys/wait.h>
 #include <stdio.h>
@@ -10,6 +11,10 @@
 pid_t p;
 int pipefd1[2];
 int pipefd2[2];
+
+void sighandler(int signum) {
+    _exit(0);
+}
 
 void create_dispatcher(const char *input,const char *c2c) {
     close(pipefd1[1]);
@@ -65,8 +70,8 @@ int ext() {
 
 int add(const int x) {
     if (write(pipefd1[1], &x, sizeof(int)) != sizeof(int)) {
-        perror("pipe");
-        _exit(1);
+            perror("pipe_frontend");
+            _exit(1);
     }
     return 0;
 }
@@ -74,12 +79,12 @@ int add(const int x) {
 int info() {
     int x;
     if (kill(p, SIGUSR1) < 0) {
-        perror("kill");
-        return -1;
+            perror("kill");
+            return -1;
     }
     if (read(pipefd2[0], &x, sizeof(int)) != sizeof(int)) {
-        perror("pipe");
-        _exit(1);
+            perror("pipe_frontend");
+            _exit(1);
     }
     printf("Concurrent workers: %d\n", x);
     return 0;
@@ -92,24 +97,32 @@ int prog(const char *input, const char c2c) {
         _exit(1);
     }
     if (read(pipefd2[0], &res, sizeof(res)) != sizeof(res)) {
-        perror("pipe");
-        _exit(1);
+            perror("pipe_frontend");
+            _exit(1);
     }
     printf("Progress: %d%% - %d instances of the character '%c' found so far in %s\n", res[0], res[1], c2c, input);
     return 0;
 }
 
 int main(int argc, char *argv[]) {
+    signal(SIGPIPE, SIG_IGN);
     if (argc != 3) {
         fprintf(stderr, "Usage: %s <input-file> <char>\n", argv[0]);
         return 1;
     }
     if ((pipe(pipefd1)) < 0) {
-        perror("pipe");
+        perror("pipe_frontend");
         _exit(1);
     }
     if ((pipe(pipefd2)) < 0) {
-        perror("pipe");
+        perror("pipe_frontend");
+        _exit(1);
+    }
+    struct sigaction sa;
+    sa.sa_handler = sighandler;
+    sa.sa_flags = SA_RESTART;
+    if (sigaction(SIGTERM, &sa, NULL) < 0) {
+        perror("sigaction");
         _exit(1);
     }
     p = fork();
@@ -124,7 +137,7 @@ int main(int argc, char *argv[]) {
     ssize_t rcnt;
     char buff[CHUNK];
     for (;;) {
-        write(1,"> ", 2);
+        write(1, "> ", 2);
         rcnt = read(0, buff, sizeof(buff)-1);
         if (rcnt == 0) /* end-of-file */
             break;
@@ -172,6 +185,7 @@ int main(int argc, char *argv[]) {
         } else {
             check("a");
         }
+        sleep(1);
     }
     wait(NULL);
 }
