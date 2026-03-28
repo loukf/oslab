@@ -160,37 +160,20 @@ int calculate(const int *chunks, const int occur) {
 }
 
 void dispatch(const char *input, const char *c2c, Worker *workers) {
-    /* CHATGPT CODE ALERT */
     static int flags_set = 0;
     if (!flags_set) {
-        // Set pipe non-blocking once
         int flags = fcntl(front_pipefd1[0], F_GETFL, 0);
         fcntl(front_pipefd1[0], F_SETFL, flags | O_NONBLOCK);
         flags_set = 1;
     }
-
     int P;
-    ssize_t n = read(front_pipefd1[0], &P, sizeof(int));
-    if (n == -1) {
-        if (errno != EAGAIN && errno != EWOULDBLOCK && errno != EINTR) {
+    if (read(front_pipefd1[0], &P, sizeof(int)) != sizeof(int)) {
+        if (errno != EINTR && errno != EWOULDBLOCK) {
             perror("pipe_dispatcher");
             term(1);
         }
-        // No data, just continue
-        return;
-    } else if (n != sizeof(int)) {
-        fprintf(stderr, "Partial read from pipe\n");
         return;
     }
-    /* CHATGPT CODE END */
-
-    // int P = 0;
-    // if (read(front_pipefd1[0], &P, sizeof(int)) != sizeof(int)) {
-    //     if (errno != EINTR) {
-    //         perror("pipe_dispatcher");
-    //         term(1);
-    //     }
-    // }
     if (P > 0) {
         int to_spawn = P;
         for (int i = 0; i < MAX_W && to_spawn > 0; ++i) {
