@@ -5,8 +5,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include "config.h"
 
-char msg[1024];
+char msg[CHUNK];
 int active = 0;
 pid_t parent_pid;
 

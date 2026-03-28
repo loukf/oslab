@@ -105,7 +105,6 @@ int prog(const char *input, const char c2c) {
 }
 
 int main(int argc, char *argv[]) {
-    signal(SIGPIPE, SIG_IGN);
     if (argc != 3) {
         fprintf(stderr, "Usage: %s <input-file> <char>\n", argv[0]);
         return 1;
@@ -122,6 +121,13 @@ int main(int argc, char *argv[]) {
     sa.sa_handler = sighandler;
     sa.sa_flags = SA_RESTART;
     if (sigaction(SIGTERM, &sa, NULL) < 0) {
+        perror("sigaction");
+        _exit(1);
+    }
+    struct sigaction sa_pipe;
+    sa_pipe.sa_handler = SIG_IGN;
+    sa.sa_flags = SA_RESTART;
+    if (sigaction(SIGPIPE, &sa_pipe, NULL) < 0) {
         perror("sigaction");
         _exit(1);
     }

@@ -247,7 +247,6 @@ int main(int argc, char *argv[]) {
         int occur = assign_work(chunks, chunk_size, workers);
         finish = calculate(chunks, occur);
     }
-    fprintf(stdout, "Program finished!\n");
-    fprintf(stdout, "The character '%c' appears %d times in file %s.\n", argv[2][0], res[1], argv[1]);
+    fprintf(stdout, "Program finished!\nThe character '%c' appears %d times in file %s.\n", argv[2][0], res[1], argv[1]);
     term(0);
 }
