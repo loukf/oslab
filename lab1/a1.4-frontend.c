@@ -104,6 +104,59 @@ int prog(const char *input, const char c2c) {
     return 0;
 }
 
+void read_input(const char *input, const char c2c) {
+    ssize_t rcnt;
+    char buff[CHUNK];
+    write(1, "> ", 3);
+    rcnt = read(0, buff, sizeof(buff)-1);
+    if (rcnt == 0) /* end-of-file */
+        exit(0);
+    if (rcnt < 0) { /* error */
+        perror("read");
+        exit(1);
+    }
+    char *arg = &buff[3];
+    buff[rcnt] = '\0';
+    if (strncmp(buff, "add", 3) == 0 || strncmp(buff, "del", 3) == 0) {
+        while (*arg == ' ' || *arg == '\t') arg++;
+        if (*arg == '\0' || *arg == '\n') {
+            fprintf(stderr, "Please provide a number of workers\n");
+            return;
+        }
+        char *endptr;
+        int x = (int)strtol(arg, &endptr, 10);
+        while (*endptr == ' ' || *endptr == '\t') *endptr++;
+        if (*endptr != '\0' && *endptr != '\n') {
+            fprintf(stderr, "Invalid number of workers\n");
+            return;
+        }
+        if (x < 0) {
+            fprintf(stderr, "Number must be non-negative\n");
+            return;
+        }
+        if (buff[0] != 'a') x = -x;
+        add(x);
+    }
+    else if (strncmp(buff, "exit", 4) == 0) {
+        if (check(arg+1)) return;
+        ext(); exit(0);
+    } else if (strncmp(buff, "info", 4) == 0) {
+        if (check(arg+1)) return;
+        info();
+    } else if (strncmp(buff, "prog", 4) == 0) {
+        if (check(arg+1)) return;
+        prog(input, c2c);
+    } else if (strncmp(buff, "help", 4) == 0) {
+        if (check(arg+1)) return;
+        help();
+    } else if (strncmp(buff, "ps", 2) == 0) {
+        if (check(arg-1)) return;
+        show_pstree(getpid());
+    } else {
+        check("a");
+    }
+}
+
 int main(int argc, char *argv[]) {
     if (argc != 3) {
         fprintf(stderr, "Usage: %s <input-file> <char>\n", argv[0]);
@@ -141,57 +194,8 @@ int main(int argc, char *argv[]) {
     }
     close(pipefd1[0]);
     close(pipefd2[1]);
-    ssize_t rcnt;
-    char buff[CHUNK];
     for (;;) {
-        write(1, "> ", 3);
-        rcnt = read(0, buff, sizeof(buff)-1);
-        if (rcnt == 0) /* end-of-file */
-            break;
-        if (rcnt < 0) { /* error */
-            perror("read");
-            exit(1);
-        }
-        char *arg = &buff[3];
-        buff[rcnt] = '\0';
-        if (strncmp(buff, "add", 3) == 0 || strncmp(buff, "del", 3) == 0) {
-            while (*arg == ' ' || *arg == '\t') arg++;
-            if (*arg == '\0' || *arg == '\n') {
-                fprintf(stderr, "Please provide a number of workers\n");
-                continue;
-            }
-            char *endptr;
-            int x = (int)strtol(arg, &endptr, 10);
-            while (*endptr == ' ' || *endptr == '\t') *endptr++;
-            if (*endptr != '\0' && *endptr != '\n') {
-                fprintf(stderr, "Invalid number of workers\n");
-                continue;
-            }
-            if (x < 0) {
-                fprintf(stderr, "Number must be non-negative\n");
-                continue;
-            }
-            if (buff[0] != 'a') x = -x;
-            add(x);
-        }
-        else if (strncmp(buff, "exit", 4) == 0) {
-            if (check(arg+1)) continue;
-            ext(); break;
-        } else if (strncmp(buff, "info", 4) == 0) {
-            if (check(arg+1)) continue;
-            info();
-        } else if (strncmp(buff, "prog", 4) == 0) {
-            if (check(arg+1)) continue;
-            prog(argv[1], argv[2][0]);
-        } else if (strncmp(buff, "help", 4) == 0) {
-            if (check(arg+1)) continue;
-            help();
-        } else if (strncmp(buff, "ps", 2) == 0) {
-            if (check(arg-1)) continue;
-            show_pstree(getpid());
-        } else {
-            check("a");
-        }
+        read_input(argv[1], argv[2][0]);
     }
     wait(NULL);
 }

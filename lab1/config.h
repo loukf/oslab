@@ -4,6 +4,6 @@
 
 #define MAX_W 256
 
-#define CHUNK_NUM 5000
+#define CHUNK_NUM 1000
 
-#define WAIT_T 200 * 1000
+#define WAIT_T 500 * 1000

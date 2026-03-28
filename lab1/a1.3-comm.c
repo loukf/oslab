@@ -60,7 +60,7 @@ int main(int argc, char *argv[]) {
     for (int i = 0; i < P; ++i) {
         active++;
         pid_t p = fork();
-        sleep(1);
+        usleep(WAIT_T);
         if (p < 0) {
             print_err("error: cannot fork process\n");
             _exit(1);
