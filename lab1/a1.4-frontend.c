@@ -50,13 +50,14 @@ int check(char *s) {
 }
 
 void help() {
-    printf("Available commands:\n"
-           "   add <x>\tadd x workers (search processes)\n"
-           "   sub <x>\tremove x workers\n"
-           "   info\t\tdisplay information about active workers\n"
-           "   prog\t\tshow current search progress\n"
-           "   help\t\tdisplay this help message\n"
-           "   exit\t\texit the program\n");
+    fprintf(stdout,
+            "Available commands:\n"
+            "   add <x>\tadd x workers (search processes)\n"
+            "   rm  <x>\tremove x workers\n"
+            "   info\t\tdisplay information about active workers\n"
+            "   prog\t\tshow current search progress\n"
+            "   help\t\tdisplay this help message\n"
+            "   exit\t\texit the program\n");
 }                     
 
 int ext() {
@@ -85,7 +86,7 @@ int info() {
             perror("pipe_frontend");
             _exit(1);
     }
-    printf("Concurrent workers: %d\n", x);
+    fprintf(stdout, "Concurrent workers: %d\n", x);
     return 0;
 }
 
@@ -99,7 +100,7 @@ int prog(const char *input, const char c2c) {
             perror("pipe_frontend");
             _exit(1);
     }
-    printf("Progress: %d%% - %d instances of the character '%c' found so far in %s\n", res[0], res[1], c2c, input);
+    fprintf(stdout, "Progress: %d%% - %d instances of the character '%c' found so far in %s\n", res[0], res[1], c2c, input);
     return 0;
 }
 
@@ -145,9 +146,9 @@ int main(int argc, char *argv[]) {
             perror("read");
             exit(1);
         }
-        char *arg = &buff[4];
+        char *arg = &buff[3];
         buff[rcnt] = '\0';
-        if (strncmp(buff, "add", 3) == 0 || strncmp(buff, "sub", 3) == 0) {
+        if (strncmp(buff, "add", 3) == 0 || strncmp(buff, "del", 3) == 0) {
             while (*arg == ' ' || *arg == '\t') arg++;
             if (*arg == '\0' || *arg == '\n') {
                 fprintf(stderr, "Please provide a number of workers\n");
@@ -168,19 +169,19 @@ int main(int argc, char *argv[]) {
             add(x);
         }
         else if (strncmp(buff, "exit", 4) == 0) {
-            if (check(arg)) continue;
+            if (check(arg+1)) continue;
             ext(); break;
         } else if (strncmp(buff, "info", 4) == 0) {
-            if (check(arg)) continue;
+            if (check(arg+1)) continue;
             info();
         } else if (strncmp(buff, "prog", 4) == 0) {
-            if (check(arg)) continue;
+            if (check(arg+1)) continue;
             prog(argv[1], argv[2][0]);
         } else if (strncmp(buff, "help", 4) == 0) {
-            if (check(arg)) continue;
+            if (check(arg+1)) continue;
             help();
         } else if (strncmp(buff, "ps", 2) == 0) {
-            if (check(arg-2)) continue;
+            if (check(arg-1)) continue;
                 show_pstree(getpid());
         } else {
             check("a");
