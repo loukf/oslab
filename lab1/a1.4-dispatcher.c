@@ -7,7 +7,6 @@
 #include "config.h"
 
 typedef struct {
-    int id;
     int pid;
     int pipefd1[2];
     int pipefd2[2];
@@ -226,7 +225,6 @@ int main(int argc, char *argv[]) {
     }
     Worker workers[MAX_W];
     for (int i = 0; i < MAX_W; ++i) {
-        workers[i].id = i;
         workers[i].pid = -1;
     }
     int fdr;
