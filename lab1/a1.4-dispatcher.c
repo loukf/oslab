@@ -11,7 +11,6 @@
 typedef struct {
     int id;
     int pid;
-    int status; // 1 = initialized, 0 = uninitialized or terminated
     int pipefd1[2];
     int pipefd2[2];
 } Worker;
@@ -61,11 +60,10 @@ pid_t exec_worker(const char *input, const char *c2c, Worker *w) {
         close(front_pipefd2[1]);
         close(w->pipefd1[1]);
         close(w->pipefd2[0]);
-        char read[16], write[16], myid[16];
+        char read[16], write[16];
         snprintf(read, sizeof(read), "%d", w->pipefd1[0]);
         snprintf(write, sizeof(write), "%d", w->pipefd2[1]);
-        snprintf(myid, sizeof(myid), "%d", w->id);
-        char *argv[7] = {"a1.4-worker", (char *)input, (char *)c2c, read, write, myid, NULL};
+        char *argv[6] = {"a1.4-worker", (char *)input, (char *)c2c, read, write, NULL};
         execv(argv[0], argv);
         perror("execv");
         term(127);
@@ -73,19 +71,18 @@ pid_t exec_worker(const char *input, const char *c2c, Worker *w) {
     close(w->pipefd1[0]);
     close(w->pipefd2[1]);
     w->pid = p;
-    w->status = 1;
     current_w++;
     return p;
 }
 
 pid_t kill_worker(Worker *w) {
-    if (w->status == 0) return -1;
+    if (w->pid == -1) return -1;
     close(w->pipefd1[1]);
     close(w->pipefd2[0]);
     kill(w->pid, SIGTERM);
     int status;
     waitpid(w->pid, &status, 0);
-    w->status = 0;
+    w->pid = -1;
     current_w--;
     return w->pid;
 }
@@ -106,7 +103,7 @@ void reap_workers(Worker *workers) {
     int status;
     pid_t pid;
     for (int i = 0; i < MAX_W; i++) {
-        if (workers[i].status == 0) continue;
+        if (workers[i].pid == -1) continue;
         pid = waitpid(workers[i].pid, &status, WNOHANG);
         if (pid == 0) continue;
         if (pid < 0 && errno != ECHILD) {
@@ -122,7 +119,7 @@ int assign_work(int *chunks, const int chunk_size, Worker *workers) {
     int busy = 0;
     for (int i = 0; i < CHUNK_NUM; ++i) {
         if (chunks[i] != 0) continue;
-        while (busy < MAX_W && workers[busy].status == 0) {
+        while (busy < MAX_W && workers[busy].pid == -1) {
             busy++;
         }
         if (busy >= MAX_W) break;
@@ -183,7 +180,7 @@ void dispatch(const char *input, const char *c2c, Worker *workers) {
     if (P > 0) {
         int to_spawn = P;
         for (int i = 0; i < MAX_W && to_spawn > 0; ++i) {
-            if (workers[i].status == 1) continue;
+            if (workers[i].pid > 0) continue;
             exec_worker(input, c2c, &workers[i]);
             to_spawn--;
         }
@@ -193,7 +190,7 @@ void dispatch(const char *input, const char *c2c, Worker *workers) {
     } else if (P < 0) {
         int to_kill = -P;
         for (int i = 0; i < MAX_W && to_kill > 0; ++i) {
-            if (workers[i].status == 0) continue;
+            if (workers[i].pid == -1) continue;
             kill_worker(&workers[i]);
             to_kill--;
         }
@@ -233,7 +230,7 @@ int main(int argc, char *argv[]) {
     Worker workers[MAX_W];
     for (int i = 0; i < MAX_W; ++i) {
         workers[i].id = i;
-        workers[i].status = 0;
+        workers[i].pid = -1;
     }
     int fdr;
     fdr = open(argv[1], O_RDONLY);
