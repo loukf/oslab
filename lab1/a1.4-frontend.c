@@ -15,7 +15,7 @@ void sighandler(int signum) {
     _exit(0);
 }
 
-void create_dispatcher(const char *input,const char *c2c) {
+void create_dispatcher(const char *input, const char *c2c) {
     close(pipefd1[1]);
     close(pipefd2[0]);
     char read[16], write[16];
