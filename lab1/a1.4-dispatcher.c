@@ -79,12 +79,12 @@ pid_t exec_worker(const char *input, const char *c2c, Worker *w) {
 }
 
 pid_t kill_worker(Worker *w) {
+    if (w->status == 0) return -1;
     close(w->pipefd1[1]);
     close(w->pipefd2[0]);
-    if (w->status == 0) {
-        return -1;
-    }
     kill(w->pid, SIGTERM);
+    int status;
+    waitpid(w->pid, &status, 0);
     w->status = 0;
     current_w--;
     return w->pid;
