@@ -107,7 +107,7 @@ int prog(const char *input, const char c2c) {
 void read_input(const char *input, const char c2c) {
     ssize_t rcnt;
     char buff[CHUNK];
-    write(1, "> ", 3);
+    write(1, "> ", 2);
     rcnt = read(0, buff, sizeof(buff)-1);
     if (rcnt == 0) /* end-of-file */
         exit(0);
