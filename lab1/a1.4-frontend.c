@@ -1,6 +1,5 @@
 #include <unistd.h>
 #include <errno.h>
-#include <signal.h>
 #include <sys/wait.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -10,10 +9,6 @@
 pid_t p;
 int pipefd1[2];
 int pipefd2[2];
-
-void sighandler(int signum) {
-    _exit(0);
-}
 
 void show_pstree(pid_t p) {
     int ret;
@@ -171,7 +166,7 @@ int main(int argc, char *argv[]) {
         _exit(1);
     }
     struct sigaction sa;
-    sa.sa_handler = sighandler;
+    sa.sa_handler = SIG_DFL;
     sa.sa_flags = SA_RESTART;
     if (sigaction(SIGTERM, &sa, NULL) < 0) {
         perror("sigaction");
