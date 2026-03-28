@@ -7,7 +7,7 @@ int pipefd1[2];
 int pipefd2[2];
 
 int main(int argc, char *argv[]) {
-    if (argc != 6) {
+    if (argc != 5) {
         fprintf(stderr, "error: Bad worker initialization\n");
         return 1;
     }
@@ -24,7 +24,6 @@ int main(int argc, char *argv[]) {
     }
     char c2c = argv[2][0];
     int fdr = open(argv[1], O_RDONLY);
-    int id = atoi(argv[5]);
     if (fdr < 0) {
         perror("read");
         _exit(1);
