@@ -2,6 +2,7 @@
 #include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include "config.h"
 
 int pipefd1[2];
 int pipefd2[2];
@@ -29,7 +30,7 @@ int main(int argc, char *argv[]) {
         _exit(1);
     }
     for (;;) {
-        sleep(1);
+        usleep(WAIT_T);
         int res[2] = {0, 0};
         ssize_t n = read(pipefd1[0], &res, sizeof(res));
         if (n < 0) {

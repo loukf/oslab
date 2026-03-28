@@ -124,6 +124,7 @@ int main(int argc, char *argv[]) {
         perror("sigaction");
         _exit(1);
     }
+    usleep(WAIT_T);
     p = fork();
     if (p < 0) {
         perror("fork");
@@ -136,7 +137,7 @@ int main(int argc, char *argv[]) {
     ssize_t rcnt;
     char buff[CHUNK];
     for (;;) {
-        write(1, "> ", 2);
+        write(1, "> ", 3);
         rcnt = read(0, buff, sizeof(buff)-1);
         if (rcnt == 0) /* end-of-file */
             break;
@@ -184,7 +185,6 @@ int main(int argc, char *argv[]) {
         } else {
             check("a");
         }
-        sleep(1);
     }
     wait(NULL);
 }
