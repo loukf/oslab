@@ -23,7 +23,7 @@ int term(int n) {
     if (kill(getppid(), n == 0 ? SIGTERM : SIGINT) < 0) {
         if (errno != ESRCH) perror("kill");
     }
-    exit(n);
+    _exit(n);
 }
 
 void sig_info_handler(int signum) {
@@ -73,31 +73,34 @@ pid_t exec_worker(const char *input, const char *c2c, Worker *w) {
     return p;
 }
 
-pid_t kill_worker(Worker *w) {
-    if (w->pid == -1) return -1;
+void cleanup_worker(Worker *w) {
+    if (w->pid == -1) return;
     close(w->pipefd1[1]);
     close(w->pipefd2[0]);
-    kill(w->pid, SIGTERM);
-    int status;
-    waitpid(w->pid, &status, 0);
     w->pid = -1;
     current_w--;
-    return w->pid;
 }
 
-int calculate(const int *chunks, const int occur) {
-    int done = 0;
-    int flag = 1;
-    for (int i = 0; i < CHUNK_NUM; ++i) {
-        if (chunks[i] == 1) done++;
-        else flag = 0;
+void kill_worker(Worker *w) {
+    if (w->pid == -1) return ;
+    if (kill(w->pid, SIGTERM) < 0) {
+        if (errno != ESRCH) {
+            perror("kill");
+            term(1);
+        }
     }
-    res[0] = (done*100)/CHUNK_NUM;
-    res[1] += occur;
-    return flag;
+    int status;
+    if (waitpid(w->pid, &status, 0) < 0) {
+        if (errno != ECHILD) {
+            perror("waitpid");
+            term(1);
+        }
+    }
+    cleanup_worker(w);
 }
 
-void reap_workers(Worker *workers) {
+int reap_workers(Worker *workers) {
+    int res = 0;
     int status;
     pid_t pid;
     for (int i = 0; i < MAX_W; i++) {
@@ -106,10 +109,11 @@ void reap_workers(Worker *workers) {
         if (pid == 0) continue;
         if (pid < 0 && errno != ECHILD) {
             perror("waitpid");
-            exit(1);
+            term(1);
         }
-        kill_worker(&workers[i]);
+        cleanup_worker(&workers[i]);
     }
+    return res;
 }
 
 int assign_work(int *chunks, const int chunk_size, Worker *workers) {
@@ -126,14 +130,14 @@ int assign_work(int *chunks, const int chunk_size, Worker *workers) {
         if (write(workers[busy].pipefd1[1], &at, sizeof(at)) != sizeof(at)) {
             if (errno != EPIPE && errno != EBADF) {
                 perror("pipe_dispatcher");
-                _exit(1);
+                term(1);
             }
         }
         int x;
         if (read(workers[busy].pipefd2[0], &x, sizeof(int)) != sizeof(int)) {
             if (errno != EINTR && errno != EPIPE && errno == EBADF) {
                 perror("pipe_dispatcher");
-                _exit(1);
+                term(1);
             }
         }
         chunks[i] = 1;
@@ -141,6 +145,18 @@ int assign_work(int *chunks, const int chunk_size, Worker *workers) {
         busy++;
     }
     return result;
+}
+
+int calculate(const int *chunks, const int occur) {
+    int done = 0;
+    int flag = 1;
+    for (int i = 0; i < CHUNK_NUM; ++i) {
+        if (chunks[i] == 1) done++;
+        else flag = 0;
+    }
+    res[0] = (done*100)/CHUNK_NUM;
+    res[1] += occur;
+    return flag;
 }
 
 void dispatch(const char *input, const char *c2c, Worker *workers) {
