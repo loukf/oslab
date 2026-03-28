@@ -15,18 +15,6 @@ void sighandler(int signum) {
     _exit(0);
 }
 
-void create_dispatcher(const char *input, const char *c2c) {
-    close(pipefd1[1]);
-    close(pipefd2[0]);
-    char read[16], write[16];
-    snprintf(read, sizeof(read), "%d", pipefd1[0]);
-    snprintf(write, sizeof(write), "%d", pipefd2[1]);
-    char *argv[6] = {"a1.4-dispatcher", (char *)input, (char *)c2c, read, write, NULL};
-    execv(argv[0], argv);
-    perror("execv");
-    _exit(127);
-}
-
 void show_pstree(pid_t p) {
     int ret;
     char cmd[CHUNK];
@@ -90,7 +78,7 @@ int info() {
     return 0;
 }
 
-int prog(const char *input, const char c2c) {
+int prog(const char *input, const char *c2c) {
     int res[2];
     if (kill(p, SIGUSR2) < 0) {
         perror("kill");
@@ -100,11 +88,23 @@ int prog(const char *input, const char c2c) {
         perror("pipe_frontend");
         _exit(1);
     }
-    fprintf(stdout, "Progress: %d%% - %d instances of the character '%c' found so far in %s\n", res[0], res[1], c2c, input);
+    fprintf(stdout, "Progress: %d%% - %d instances of the character '%c' found so far in %s\n", res[0], res[1], c2c[0], input);
     return 0;
 }
 
-void read_input(const char *input, const char c2c) {
+void create_dispatcher(const char *input, const char *c2c) {
+    close(pipefd1[1]);
+    close(pipefd2[0]);
+    char read[16], write[16];
+    snprintf(read, sizeof(read), "%d", pipefd1[0]);
+    snprintf(write, sizeof(write), "%d", pipefd2[1]);
+    char *argv[6] = {"a1.4-dispatcher", (char *)input, (char *)c2c, read, write, NULL};
+    execv(argv[0], argv);
+    perror("execv");
+    _exit(127);
+}
+
+void read_input(const char *input, const char *c2c) {
     ssize_t rcnt;
     char buff[CHUNK];
     write(1, "> ", 2);
@@ -195,7 +195,7 @@ int main(int argc, char *argv[]) {
     close(pipefd1[0]);
     close(pipefd2[1]);
     for (;;) {
-        read_input(argv[1], argv[2][0]);
+        read_input(argv[1], argv[2]);
     }
     wait(NULL);
 }
