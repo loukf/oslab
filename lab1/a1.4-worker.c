@@ -13,15 +13,18 @@ void work(const int fdr, const char c2c) {
     if (n < 0) {
         perror("pipe_worker");
         _exit(1);
-    } else if (n == 0) _exit(0);
+    } else if (n == 0) {
+        _exit(0);
+    }
     int offset = res[0];
     int end = res[1];
     int count = 0;
     char buff[end+1];
     ssize_t rcnt;
     rcnt = pread(fdr, buff, sizeof(buff)-1, offset);
-    if (rcnt == 0) /* end of file */
+    if (rcnt == 0) { /* end of file */
         return;
+    }
     if (rcnt < 0) { /* error */
         perror("pipe_worker");
         _exit(1);
@@ -44,6 +47,11 @@ int main(int argc, char *argv[]) {
         return 1;
     }
     char *endptr;
+    int fdr = (int)strtol(argv[1], &endptr, 10);
+    if (*endptr != '\0') {
+        fprintf(stderr, "error: Invalid input FD: %s\n", argv[1]);
+        return 1;
+    }
     pipefd1[0] = (int)strtol(argv[3], &endptr, 10);
     if (*endptr != '\0') {
         fprintf(stderr, "error: Invalid pipe FD: %s\n", argv[3]);
@@ -53,11 +61,6 @@ int main(int argc, char *argv[]) {
     if (*endptr != '\0') {
         fprintf(stderr, "error: Invalid pipe FD: %s\n", argv[4]);
         return 1;
-    }
-    int fdr = open(argv[1], O_RDONLY);
-    if (fdr < 0) {
-        perror("read");
-        _exit(1);
     }
     for (;;) {
         work(fdr, argv[2][0]);

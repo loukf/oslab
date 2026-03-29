@@ -32,7 +32,7 @@ void sig_prog_handler(int signum) {
     }
 }
 
-pid_t exec_worker(const char *input, const char *c2c, Worker *w) {
+pid_t exec_worker(const int fdr, const char *c2c, Worker *w) {
     if ((pipe(w->pipefd1)) < 0) {
         perror("pipe_dispatcher");
         _exit(1);
@@ -50,10 +50,11 @@ pid_t exec_worker(const char *input, const char *c2c, Worker *w) {
         close(front_pipefd2[1]);
         close(w->pipefd1[1]);
         close(w->pipefd2[0]);
-        char read[16], write[16];
+        char read[16], write[16], fdr_str[16];
         snprintf(read, sizeof(read), "%d", w->pipefd1[0]);
         snprintf(write, sizeof(write), "%d", w->pipefd2[1]);
-        char *argv[6] = {"a1.4-worker", (char *)input, (char *)c2c, read, write, NULL};
+        snprintf(fdr_str, sizeof(fdr_str), "%d", fdr);
+        char *argv[6] = {"a1.4-worker", fdr_str, (char *)c2c, read, write, NULL};
         execv(argv[0], argv);
         perror("execv");
         _exit(127);
@@ -143,14 +144,13 @@ void assign_work(const int chunk_size, Worker *workers) {
             }
             continue;
         }
-        // printf("read chunk[%d], %d found\n", res[0], x);
         res[0]++;
         res[1] += x;
         busy++;
     }
 }
 
-void dispatch(const char *input, const char *c2c, Worker *workers) {
+void dispatch(const int fdr, const char *c2c, Worker *workers) {
     static int flags_set = 0;
     if (!flags_set) {
         int flags = fcntl(front_pipefd1[0], F_GETFL, 0);
@@ -169,7 +169,7 @@ void dispatch(const char *input, const char *c2c, Worker *workers) {
         int to_spawn = P;
         for (int i = 0; i < MAX_W && to_spawn > 0; ++i) {
             if (workers[i].pid > 0) continue;
-            exec_worker(input, c2c, &workers[i]);
+            exec_worker(fdr, c2c, &workers[i]);
             to_spawn--;
         }
         if (to_spawn > 0) {
@@ -187,7 +187,7 @@ void dispatch(const char *input, const char *c2c, Worker *workers) {
 
 int main(int argc, char *argv[]) {
     if (argc != 5) {
-        fprintf(stderr, "error: Bad dispatcher initialization\n");
+        fprintf(stdout, "error: Bad dispatcher initialization\n");
         return 1;
     }
     char *endptr;
@@ -233,9 +233,9 @@ int main(int argc, char *argv[]) {
     off_t chunk_size = (end-1)/CHUNK_NUM+1;
     while (res[0] < CHUNK_NUM) {
         reap_workers(workers);
-        usleep(WAIT_T);
-        dispatch(argv[1], argv[2], workers);
+        dispatch(fdr, argv[2], workers);
         assign_work(chunk_size, workers);
+        usleep(WAIT_T);
     }
     fprintf(stdout, "Program finished!\n");
     fprintf(stdout, "The character '%c' appears %d times in file %s.\n", argv[2][0], res[1], argv[1]);
