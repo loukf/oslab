@@ -163,33 +163,35 @@ void read_input(const char *input, const char *c2c) {
         return; 
     }
     buff[rcnt] = '\0';
+    char *s = &buff[0];
+    while (*s == ' ' || *s == '\t') s++;
     int x;
-    if (strncmp(buff, "add", 3) == 0) {
-        if (check_with_arg(&buff[3], &x)) {
+    if (strncmp(s, "add", 3) == 0) {
+        if (check_with_arg(&s[3], &x)) {
             add(x);
         }
-    } else if (strncmp(buff, "sub", 3) == 0) {
-        if (check_with_arg(&buff[3], &x)) {
+    } else if (strncmp(s, "sub", 3) == 0) {
+        if (check_with_arg(&s[3], &x)) {
             add(-x);
         }
-    } else if (strncmp(buff, "exit", 4) == 0) {
+    } else if (strncmp(s, "exit", 4) == 0) {
         if (check(&buff[4])) {
             ext();
         }
-    } else if (strncmp(buff, "info", 4) == 0) {
-        if (check(&buff[4])) {
+    } else if (strncmp(s, "info", 4) == 0) {
+        if (check(&s[4])) {
             info();
         }
-    } else if (strncmp(buff, "prog", 4) == 0) {
-        if (check(&buff[4])) {
+    } else if (strncmp(s, "prog", 4) == 0) {
+        if (check(&s[4])) {
             prog(input, c2c);
         }
-    } else if (strncmp(buff, "help", 4) == 0) {
-        if (check(&buff[4])) {
+    } else if (strncmp(s, "help", 4) == 0) {
+        if (check(&s[4])) {
             help();
         }
-    } else if (strncmp(buff, "ps", 2) == 0) {
-        if (check(&buff[2])) {
+    } else if (strncmp(s, "ps", 2) == 0) {
+        if (check(&s[2])) {
             show_pstree(getpid());
         }
     } else {
