@@ -1,6 +1,7 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <sys/wait.h>
+#include <sys/stat.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -50,12 +51,13 @@ int main(int argc, char *argv[]) {
             _exit(1);
         }
     }
-    long long end = lseek(fdr, 0, SEEK_END);
-    if (end < 0) {
-        print_err("error: lseek failed\n");
-        _exit(1);
+    struct stat st;
+    if (fstat(fdr, &st) < 0) {
+        perror("fstat");
+        exit(1);
     }
-    off_t offset = (end-1)/P+1;
+    off_t end = st.st_size;
+    off_t chunk_size = (end-1)/P+1;
     int res = 0;
     for (int i = 0; i < P; ++i) {
         active++;
@@ -66,9 +68,9 @@ int main(int argc, char *argv[]) {
             _exit(1);
         } else if (p == 0) {
             int child_count = 0;
-            char buff[offset+1];
+            char buff[chunk_size+1];
             ssize_t rcnt;
-            rcnt = pread(fdr, buff, sizeof(buff)-1, offset*i);
+            rcnt = pread(fdr, buff, sizeof(buff)-1, chunk_size*i);
             if (rcnt == 0) /* end‐of‐file */
                 break;
             if (rcnt < 0) { /* error */

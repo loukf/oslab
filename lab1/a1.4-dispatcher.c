@@ -2,6 +2,7 @@
 #include <fcntl.h>
 #include <errno.h>
 #include <sys/wait.h>
+#include <sys/stat.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include "config.h"
@@ -225,11 +226,12 @@ int main(int argc, char *argv[]) {
         perror("read");
         exit(1);
     }
-    long long end = lseek(fdr, 0, SEEK_END);
-    if (end < 0) {
-        perror("lseek");
+    struct stat st;
+    if (fstat(fdr, &st) < 0) {
+        perror("fstat");
         exit(1);
     }
+    off_t end = st.st_size;
     off_t chunk_size = (end-1)/CHUNK_NUM+1;
     while (res[0] < CHUNK_NUM) {
         reap_workers(workers);
