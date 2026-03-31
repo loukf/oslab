@@ -51,20 +51,15 @@ void show_pstree(pid_t p) {
 
 int check(const char *s) {
     while (*s == ' ' || *s == '\t') s++;
-    if (*s == '\0') {
-        fprintf(stdout, "\n");
-        ext(0);
-    }
     if (*s == '\n') {
-        return 1;
+        return 0;
     }
     while (*s != '\n' && *s != '\0') s++;
     if (*s == '\0') {
         fprintf(stdout, "\n");
         ext(0);
     }
-    fprintf(stderr, "Unknown command. Type 'help' to see the available commands\n");
-    return 0;
+    return 1; // Unknown command. Type 'help' to see the available commands
 }
 
 int check_with_arg(const char *s, int *x_out) {
@@ -74,28 +69,20 @@ int check_with_arg(const char *s, int *x_out) {
         ext(0);
     }
     if (*s == '\n') {
-        fprintf(stderr, "Please provide a number of workers\n");
-        return 0;
+        return 2; // Please provide a number of workers
     }
     char *endptr;
     int x = (int)strtol(s, &endptr, 10);
     while (*endptr == ' ' || *endptr == '\t') endptr++;
-    if (*endptr != '\0' && *endptr != '\n') {
-        while (*endptr != '\n' && *endptr != '\0') endptr++;
+    if (*endptr != '\n') {
         check(&endptr[0]);
-        fprintf(stderr, "Invalid number of workers\n");
-        return 0;
-    }
-    if (*endptr == '\0') {
-        fprintf(stdout, "\n");
-        ext(0);
+        return 3; // Invalid number of workers
     }
     if (x < 0) {
-        fprintf(stderr, "Number must be non-negative\n");
-        return 0;
+        return 4; // Number must be non-negative
     }
     *x_out = x;
-    return 1;
+    return 0;
 }
 
 void help() {
@@ -162,6 +149,7 @@ void read_input(const char *input, const char *c2c) {
     ssize_t rcnt;
     char buff[CHUNK];
     int x;
+    int res;
     write(1, "> ", 2);
     rcnt = read(0, buff, sizeof(buff)-1);
     if (rcnt == 0) { /* end-of-file */
@@ -181,35 +169,49 @@ void read_input(const char *input, const char *c2c) {
         fprintf(stdout, "\n");
         ext(0); 
     } else if (strncmp(s, "add", 3) == 0) {
-        if (check_with_arg(&s[3], &x)) {
+        if (!(res = check_with_arg(&s[3], &x))) {
             add(x);
         }
     } else if (strncmp(s, "sub", 3) == 0) {
-        if (check_with_arg(&s[3], &x)) {
+        if (!(res = check_with_arg(&s[3], &x))) {
             add(-x);
         }
     } else if (strncmp(s, "exit", 4) == 0) {
-        if (check(&buff[4])) {
+        if (!(res = check(&buff[4]))) {
             ext(0);
         }
     } else if (strncmp(s, "info", 4) == 0) {
-        if (check(&s[4])) {
+        if (!(check(&s[4]))) {
             info();
         }
     } else if (strncmp(s, "prog", 4) == 0) {
-        if (check(&s[4])) {
+        if (!(res = check(&s[4]))) {
             prog(input, c2c);
         }
     } else if (strncmp(s, "help", 4) == 0) {
-        if (check(&s[4])) {
+        if (!(res = check(&s[4]))) {
             help();
         }
     } else if (strncmp(s, "ps", 2) == 0) {
-        if (check(&s[2])) {
+        if (!(res = check(&s[2]))) {
             show_pstree(getpid());
         }
     } else {
-        check(&s[0]);
+        res = check(&s[0]);
+    }
+    switch (res) {
+        case 1:
+            fprintf(stderr, "Unknown command. Type 'help' to see the available commands\n");
+            break;
+        case 2:
+            fprintf(stderr, "Please provide a number of workers\n");
+            break;
+        case 3:
+            fprintf(stderr, "Invalid number of workers\n");
+            break;
+        case 4:
+            fprintf(stderr, "Number must be non-negative\n");
+            break;
     }
 }
 
