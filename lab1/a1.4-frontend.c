@@ -58,6 +58,11 @@ int check(const char *s) {
     if (*s == '\n') {
         return 1;
     }
+    while (*s != '\n' && *s != '\0') s++;
+    if (*s == '\0') {
+        fprintf(stdout, "\n");
+        ext(0);
+    }
     fprintf(stderr, "Unknown command. Type 'help' to see the available commands\n");
     return 0;
 }
@@ -204,9 +209,7 @@ void read_input(const char *input, const char *c2c) {
             show_pstree(getpid());
         }
     } else {
-        while (*s != '\n' && *s != '\0') s++;
         check(&s[0]);
-        check("a");
     }
 }
 
