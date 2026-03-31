@@ -15,17 +15,25 @@ void sigchldhandler(int signum) {
     pid_t pid;
     if ((pid = waitpid(p, &status, WNOHANG)) < 0) {
         perror("wait");
-        _exit(1);
+        exit(1);
     }
     if (pid != p) {
         return;
     }
     if (WIFSIGNALED(status)) {
         fprintf(stdout, "\n");
-        _exit(WTERMSIG(status));
+        exit(WTERMSIG(status));
     } else if (WIFEXITED(status)) {
-        _exit(WEXITSTATUS(status));
+        exit(WEXITSTATUS(status));
     }
+}
+
+int ext(int n) {
+    if (kill(p, 2) < 0) {
+        perror("kill");
+        exit(-1);
+    }
+    exit(n);
 }
 
 void show_pstree(pid_t p) {
@@ -37,12 +45,16 @@ void show_pstree(pid_t p) {
     ret = system(cmd);
     if (ret < 0) {
         perror("system");
-        exit(104);
+        ext(104);
     }
 }
 
 int check(const char *s) {
     while (*s == ' ' || *s == '\t') s++;
+    if (*s == '\0') {
+        fprintf(stdout, "\n");
+        // ext(0);
+    }
     if (*s == '\n' || *s == '\0') {
         return 1;
     }
@@ -51,25 +63,27 @@ int check(const char *s) {
 }
 
 int check_with_arg(const char *s, int *x_out) {
-    if (*s != '\0' && *s != '\n' && *s != '\t' && *s != ' ') {
-        check("a");
-        return 0;
-    }
     while (*s == ' ' || *s == '\t') s++;
-    if (*s == '\0' || *s == '\n') {
+    if (*s == '\0') {
+        fprintf(stdout, "\n");
+        // ext(0);
+    }
+    if (*s == '\n' || *s == '\0') {
         fprintf(stderr, "Please provide a number of workers\n");
         return 0;
     }
     char *endptr;
     int x = (int)strtol(s, &endptr, 10);
-    if (endptr == s) {
+    while (*endptr == ' ' || *endptr == '\t') endptr++;
+    if (*endptr != '\0' && *endptr != '\n') {
+        while (*endptr != '\n' && *endptr != '\0') endptr++;
+        check(&endptr[0]);
         fprintf(stderr, "Invalid number of workers\n");
         return 0;
     }
-    while (*endptr == ' ' || *endptr == '\t') endptr++;
-    if (*endptr != '\0' && *endptr != '\n') {
-        fprintf(stderr, "Invalid number of workers\n");
-        return 0;
+    if (*endptr == '\0') {
+        fprintf(stdout, "\n");
+        // ext(0);
     }
     if (x < 0) {
         fprintf(stderr, "Number must be non-negative\n");
@@ -90,18 +104,10 @@ void help() {
             "   exit\t\texit the program\n");
 }                     
 
-int ext() {
-    if (kill(p, 2) < 0) {
-        perror("kill");
-        return -1;
-    }
-    _exit(0);
-}
-
 int add(const int x) {
     if (write(pipefd1[1], &x, sizeof(int)) != sizeof(int)) {
         perror("pipe_frontend");
-        _exit(1);
+        ext(1);
     }
     return 0;
 }
@@ -110,11 +116,11 @@ int info() {
     int x;
     if (kill(p, SIGUSR1) < 0) {
         perror("kill");
-        exit(-1);
+        ext(-1);
     }
     if (read(pipefd2[0], &x, sizeof(int)) != sizeof(int)) {
         perror("pipe_frontend");
-        _exit(1);
+        ext(1);
     }
     fprintf(stdout, "Concurrent workers: %d\n", x);
     return 0;
@@ -124,11 +130,11 @@ int prog(const char *input, const char *c2c) {
     int res[2];
     if (kill(p, SIGUSR2) < 0) {
         perror("kill");
-        _exit(1);
+        ext(1);
     }
     if (read(pipefd2[0], &res, sizeof(res)) != sizeof(res)) {
         perror("pipe_frontend");
-        _exit(1);
+        ext(1);
     }
     double percent = ((double)res[0] / (double)CHUNK_NUM) * 100.0;
     fprintf(stdout, "Progress: %.2f%% - %d instances of the character '%c' found so far in %s\n", percent, res[1], c2c[0], input);
@@ -150,23 +156,26 @@ void create_dispatcher(const char *input, const char *c2c) {
 void read_input(const char *input, const char *c2c) {
     ssize_t rcnt;
     char buff[CHUNK];
+    int x;
     write(1, "> ", 2);
     rcnt = read(0, buff, sizeof(buff)-1);
     if (rcnt == 0) { /* end-of-file */
-        exit(0);
+        fprintf(stdout, "\n");
+        ext(0);
     }
     if (rcnt < 0) { /* error */
         perror("read");
-        exit(1);
-    }
-    if (buff[0] == '\n') { /* empty-line */
-        return; 
+        ext(1);
     }
     buff[rcnt] = '\0';
     char *s = &buff[0];
     while (*s == ' ' || *s == '\t') s++;
-    int x;
-    if (strncmp(s, "add", 3) == 0) {
+    if (*s == '\n') {
+        return;
+    } else if (*s == '\0') {
+        fprintf(stdout, "\n");
+        ext(0); 
+    } else if (strncmp(s, "add", 3) == 0) {
         if (check_with_arg(&s[3], &x)) {
             add(x);
         }
@@ -176,7 +185,7 @@ void read_input(const char *input, const char *c2c) {
         }
     } else if (strncmp(s, "exit", 4) == 0) {
         if (check(&buff[4])) {
-            ext();
+            ext(0);
         }
     } else if (strncmp(s, "info", 4) == 0) {
         if (check(&s[4])) {
@@ -195,6 +204,8 @@ void read_input(const char *input, const char *c2c) {
             show_pstree(getpid());
         }
     } else {
+        while (*s != '\n' && *s != '\0') s++;
+        check(&s[0]);
         check("a");
     }
 }
@@ -206,30 +217,30 @@ int main(int argc, char *argv[]) {
     }
     if ((pipe(pipefd1)) < 0) {
         perror("pipe_frontend");
-        _exit(1);
+        ext(1);
     }
     if ((pipe(pipefd2)) < 0) {
         perror("pipe_frontend");
-        _exit(1);
+        ext(1);
     }
     struct sigaction sa;
     sa.sa_handler = sigchldhandler;
     sa.sa_flags = SA_RESTART;
     if (sigaction(SIGCHLD, &sa, NULL) < 0) {
         perror("sigaction");
-        _exit(1);
+        ext(1);
     }
     struct sigaction sa_pipe;
     sa_pipe.sa_handler = SIG_IGN;
     sa_pipe.sa_flags = SA_RESTART;
     if (sigaction(SIGPIPE, &sa_pipe, NULL) < 0) {
         perror("sigaction");
-        _exit(1);
+        ext(1);
     }
     p = fork();
     if (p < 0) {
         perror("fork");
-        _exit(1);
+        ext(1);
     } else if (p == 0) {
         create_dispatcher(argv[1], argv[2]);
     }

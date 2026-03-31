@@ -21,30 +21,30 @@ int front_pipefd2[2];
 void sig_info_handler(int signum) {
     if (write(front_pipefd2[1], &current_w, sizeof(int)) != sizeof(int)) {
         perror("pipe_dispatcher");
-        _exit(1);
+        exit(1);
     }
 }
 
 void sig_prog_handler(int signum) {
     if (write(front_pipefd2[1], &res, sizeof(res)) != sizeof(res)) {
         perror("pipe_dispatcher");
-        _exit(1);
+        exit(1);
     }
 }
 
 pid_t exec_worker(const int fdr, const char *c2c, Worker *w) {
     if ((pipe(w->pipefd1)) < 0) {
         perror("pipe_dispatcher");
-        _exit(1);
+        exit(1);
     }
     if ((pipe(w->pipefd2)) < 0) {
         perror("pipe_dispatcher");
-        _exit(1);
+        exit(1);
     }
     pid_t p = fork();
     if (p < 0) {
         perror("fork");
-        _exit(1);
+        exit(1);
     } else if (p == 0) {
         close(front_pipefd1[0]);
         close(front_pipefd2[1]);
@@ -83,14 +83,14 @@ void kill_worker(Worker *w) {
     if (kill(w->pid, SIGTERM) < 0) {
         if (errno != ESRCH) {
             perror("kill");
-            _exit(1);
+            exit(1);
         }
     }
     int status;
     if (waitpid(w->pid, &status, 0) < 0) {
         if (errno != ECHILD) {
             perror("waitpid");
-            _exit(1);
+            exit(1);
         }
     }
     cleanup_worker(w);
@@ -110,7 +110,7 @@ int reap_workers(Worker *workers) {
         }
         if (pid < 0 && errno != ECHILD) {
             perror("waitpid");
-            _exit(1);
+            exit(1);
         }
         cleanup_worker(&workers[i]);
         num++;
@@ -132,7 +132,7 @@ void assign_work(const int chunk_size, Worker *workers) {
         if (write(workers[busy].pipefd1[1], &at, sizeof(at)) != sizeof(at)) {
             if (errno != EPIPE && errno != EBADF) {
                 perror("pipe_dispatcher");
-                _exit(1);
+                exit(1);
             }
             continue;
         }
@@ -140,7 +140,7 @@ void assign_work(const int chunk_size, Worker *workers) {
         if (read(workers[busy].pipefd2[0], &x, sizeof(int)) != sizeof(int)) {
             if (errno != EINTR && errno != EPIPE && errno == EBADF) {
                 perror("pipe_dispatcher");
-                _exit(1);
+                exit(1);
             }
             continue;
         }
@@ -161,7 +161,7 @@ void dispatch(const int fdr, const char *c2c, Worker *workers) {
     if (read(front_pipefd1[0], &P, sizeof(int)) != sizeof(int)) {
         if (errno != EINTR && errno != EWOULDBLOCK) {
             perror("pipe_dispatcher");
-            _exit(1);
+            exit(1);
         }
         return;
     }
@@ -206,14 +206,14 @@ int main(int argc, char *argv[]) {
     sa_info.sa_flags = SA_RESTART;
     if (sigaction(SIGUSR1, &sa_info, NULL) < 0) {
         perror("sigaction");
-        _exit(1);
+        exit(1);
     }
     struct sigaction sa_prog;
     sa_prog.sa_handler = sig_prog_handler;
     sa_prog.sa_flags = SA_RESTART;
     if (sigaction(SIGUSR2, &sa_prog, NULL) < 0) {
         perror("sigaction");
-        _exit(1);
+        exit(1);
     }
     Worker workers[MAX_W];
     for (int i = 0; i < MAX_W; ++i) {
@@ -223,12 +223,12 @@ int main(int argc, char *argv[]) {
     fdr = open(argv[1], O_RDONLY);
     if (fdr < 0) {
         perror("read");
-        _exit(1);
+        exit(1);
     }
     long long end = lseek(fdr, 0, SEEK_END);
     if (end < 0) {
         perror("lseek");
-        _exit(1);
+        exit(1);
     }
     off_t chunk_size = (end-1)/CHUNK_NUM+1;
     while (res[0] < CHUNK_NUM) {
@@ -239,5 +239,4 @@ int main(int argc, char *argv[]) {
     }
     fprintf(stdout, "Program finished!\n");
     fprintf(stdout, "The character '%c' appears %d times in file %s.\n", argv[2][0], res[1], argv[1]);
-    _exit(0);
 }
