@@ -89,7 +89,7 @@ void help() {
     fprintf(stdout,
             "Available commands:\n"
             "   add <x>\tadd x workers (search processes)\n"
-            "   del <x>\tremove x workers\n"
+            "   sub <x>\tremove x workers\n"
             "   info\t\tdisplay information about active workers\n"
             "   prog\t\tshow current search progress\n"
             "   help\t\tdisplay this help message\n"
@@ -181,7 +181,7 @@ void read_input(const char *input, const char *c2c) {
             ext(0);
         }
     } else if (strncmp(s, "info", 4) == 0) {
-        if (!(check(&s[4]))) {
+        if (!(res = check(&s[4]))) {
             info();
         }
     } else if (strncmp(s, "prog", 4) == 0) {
