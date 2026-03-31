@@ -53,9 +53,9 @@ int check(const char *s) {
     while (*s == ' ' || *s == '\t') s++;
     if (*s == '\0') {
         fprintf(stdout, "\n");
-        // ext(0);
+        ext(0);
     }
-    if (*s == '\n' || *s == '\0') {
+    if (*s == '\n') {
         return 1;
     }
     fprintf(stderr, "Unknown command. Type 'help' to see the available commands\n");
@@ -66,9 +66,9 @@ int check_with_arg(const char *s, int *x_out) {
     while (*s == ' ' || *s == '\t') s++;
     if (*s == '\0') {
         fprintf(stdout, "\n");
-        // ext(0);
+        ext(0);
     }
-    if (*s == '\n' || *s == '\0') {
+    if (*s == '\n') {
         fprintf(stderr, "Please provide a number of workers\n");
         return 0;
     }
@@ -83,7 +83,7 @@ int check_with_arg(const char *s, int *x_out) {
     }
     if (*endptr == '\0') {
         fprintf(stdout, "\n");
-        // ext(0);
+        ext(0);
     }
     if (x < 0) {
         fprintf(stderr, "Number must be non-negative\n");
