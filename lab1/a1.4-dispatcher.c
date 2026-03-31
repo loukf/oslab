@@ -237,6 +237,7 @@ int main(int argc, char *argv[]) {
         assign_work(chunk_size, workers);
         usleep(WAIT_T);
     }
+    close(fdr);
     fprintf(stdout, "Program finished!\n");
     fprintf(stdout, "The character '%c' appears %d times in file %s.\n", argv[2][0], res[1], argv[1]);
 }
