@@ -14,7 +14,7 @@ typedef struct {
 } Worker;
 
 int current_w = 0;
-int res[2] = {0, 0};
+int res[3] = {0, 0, 0};
 
 int front_pipefd1[2];
 int front_pipefd2[2];
@@ -121,7 +121,7 @@ int reap_workers(Worker *workers) {
 
 void assign_work(const int chunk_size, Worker *workers) {
     int busy = 0;
-    for (int i = res[0]; i < CHUNK_NUM; ++i) {
+    for (int i = res[0]; i < res[1]; ++i) {
         while (busy < MAX_W && workers[busy].pid == -1) {
             busy++;
         }
@@ -146,7 +146,7 @@ void assign_work(const int chunk_size, Worker *workers) {
             continue;
         }
         res[0]++;
-        res[1] += x;
+        res[2] += x;
         busy++;
     }
 }
@@ -232,14 +232,15 @@ int main(int argc, char *argv[]) {
         exit(1);
     }
     off_t end = st.st_size;
-    off_t chunk_size = (end-1)/CHUNK_NUM+1;
-    while (res[0] < CHUNK_NUM) {
+    res[1] = end < CHUNK_NUM ? end : CHUNK_NUM;
+    int chunk_size = (end-1)/res[1]+1;
+    while (res[0] < res[1]) {
         reap_workers(workers);
         dispatch(fdr, argv[2], workers);
         assign_work(chunk_size, workers);
-        usleep(WAIT_T);
+        // usleep(WAIT_T);
     }
     close(fdr);
     fprintf(stdout, "Program finished!\n");
-    fprintf(stdout, "The character '%c' appears %d times in file %s.\n", argv[2][0], res[1], argv[1]);
+    fprintf(stdout, "The character '%c' appears %d times in file %s.\n", argv[2][0], res[2], argv[1]);
 }

@@ -112,7 +112,7 @@ int info(void) {
 }
 
 int prog(const char *input, const char *c2c) {
-    int res[2];
+    int res[3];
     if (kill(p, SIGUSR2) < 0) {
         perror("kill");
         ext(1);
@@ -121,8 +121,8 @@ int prog(const char *input, const char *c2c) {
         perror("pipe_frontend");
         ext(1);
     }
-    double percent = ((double)res[0] / (double)CHUNK_NUM) * 100.0;
-    fprintf(stdout, "Progress: %.2f%% - %d instances of the character '%c' found so far in %s\n", percent, res[1], c2c[0], input);
+    double percent = ((double)res[0] / (double)res[1]) * 100.0;
+    fprintf(stdout, "Progress: %.2f%% - %d instances of the character '%s' found so far in %s\n", percent, res[2], c2c, input);
     return 0;
 }
 
@@ -245,6 +245,5 @@ int main(int argc, char *argv[]) {
     close(pipefd2[1]);
     for (;;) {
         read_input(argv[1], argv[2]);
-        usleep(WAIT_T);
     }
 }
