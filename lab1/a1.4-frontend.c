@@ -39,8 +39,7 @@ int ext(int n) {
 void show_pstree(pid_t p) {
     int ret;
     char cmd[CHUNK];
-    snprintf(cmd, sizeof(cmd), "echo; pstree -a -G -c -p %ld; echo",
-            (long)p);
+    snprintf(cmd, sizeof(cmd), "echo; pstree -a -G -c -p %ld; echo", (long)p);
     cmd[sizeof(cmd)-1] = '\0';
     ret = system(cmd);
     if (ret < 0) {
@@ -86,15 +85,8 @@ int parse_with_arg(const char *s, int *x_out) {
     return 0;
 }
 
-void help() {
-    fprintf(stdout,
-            "Available commands:\n"
-            "   add <x>\tadd x workers (search processes)\n"
-            "   sub <x>\tremove x workers\n"
-            "   info\t\tdisplay information about active workers\n"
-            "   prog\t\tshow current search progress\n"
-            "   help\t\tdisplay this help message\n"
-            "   exit\t\texit the program\n");
+void help(void) {
+    fprintf(stdout, HELP_MSG);
 }                     
 
 int add(const int x) {
@@ -105,7 +97,7 @@ int add(const int x) {
     return 0;
 }
 
-int info() {
+int info(void) {
     int x;
     if (kill(p, SIGUSR1) < 0) {
         perror("kill");
@@ -147,11 +139,9 @@ void create_dispatcher(const char *input, const char *c2c) {
 }
 
 void read_input(const char *input, const char *c2c) {
+    write(1, "> ", 2);
     ssize_t rcnt;
     char buff[CHUNK];
-    int x;
-    int res;
-    write(1, "> ", 2);
     rcnt = read(0, buff, sizeof(buff)-1);
     if (rcnt == 0) { /* end-of-file */
         fprintf(stdout, "\n");
@@ -162,6 +152,7 @@ void read_input(const char *input, const char *c2c) {
         ext(1);
     }
     buff[rcnt] = '\0';
+    int x, res;
     char *s = &buff[0];
     while (*s == ' ' || *s == '\t') s++;
     if (*s == '\n') {

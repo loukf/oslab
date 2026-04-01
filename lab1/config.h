@@ -7,3 +7,12 @@
 #define CHUNK_NUM 1024
 
 #define WAIT_T 500 * 1000
+
+#define HELP_MSG \
+    "Available commands:\n" \
+    "   add <x>\tadd x workers (search processes)\n" \
+    "   sub <x>\tremove x workers\n" \
+    "   info\t\tdisplay information about active workers\n" \
+    "   prog\t\tshow current search progress\n" \
+    "   help\t\tdisplay this help message\n" \
+    "   exit\t\texit the program\n"
