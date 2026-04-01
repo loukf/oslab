@@ -6,7 +6,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "config.h"
+
+#define CHUNK 1024
+
+#define WAIT_T 500 * 1000
 
 char msg[CHUNK];
 int active = 0;

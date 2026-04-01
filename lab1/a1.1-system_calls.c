@@ -7,7 +7,7 @@
 #include <string.h>
 #include "config.h"
 
-char msg[CHUNK];
+char msg[1024];
 
 void print_err(const char *s) {
     write(2, s, strlen(s));
@@ -27,7 +27,7 @@ int main(int argc, char *argv[]) {
         _exit(1);
     }
     int count = 0;
-    char buff[CHUNK];
+    char buff[1024];
     ssize_t rcnt;
     for (;;) {
         rcnt = read(fdr, buff, sizeof(buff)-1);
