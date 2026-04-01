@@ -4,9 +4,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "config.h"
 
-char msg[CHUNK];
+char msg[1024];
 
 void print_err(const char *s) {
     write(2, s, strlen(s));
@@ -37,7 +36,7 @@ int main(int argc, char *argv[]) {
     } else if (p == 0) {
         close(pipefd[0]);
         int child_count = 0;
-        char buff[CHUNK];
+        char buff[1024];
         ssize_t rcnt;
         for (;;) {
             rcnt = read(fdr, buff, sizeof(buff)-1);
