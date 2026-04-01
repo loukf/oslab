@@ -49,7 +49,7 @@ void show_pstree(pid_t p) {
     }
 }
 
-int check(const char *s) {
+int parse(const char *s) {
     while (*s == ' ' || *s == '\t') s++;
     if (*s == '\n') {
         return 0;
@@ -62,7 +62,7 @@ int check(const char *s) {
     return 1;
 }
 
-int check_with_arg(const char *s, int *x_out) {
+int parse_with_arg(const char *s, int *x_out) {
     if (*s != ' ' && *s != '\t' && *s != '\n' && *s != '\0') {
         return 1;
     }
@@ -76,7 +76,7 @@ int check_with_arg(const char *s, int *x_out) {
     }
     char *endptr;
     int x = (int)strtol(s, &endptr, 10);
-    if (check(&endptr[0])) {
+    if (parse(&endptr[0])) {
         return 3;
     }
     if (x < 0) {
@@ -170,35 +170,35 @@ void read_input(const char *input, const char *c2c) {
         fprintf(stdout, "\n");
         ext(0); 
     } else if (strncmp(s, "add", 3) == 0) {
-        if (!(res = check_with_arg(&s[3], &x))) {
+        if (!(res = parse_with_arg(&s[3], &x))) {
             add(x);
         }
     } else if (strncmp(s, "sub", 3) == 0) {
-        if (!(res = check_with_arg(&s[3], &x))) {
+        if (!(res = parse_with_arg(&s[3], &x))) {
             add(-x);
         }
     } else if (strncmp(s, "exit", 4) == 0) {
-        if (!(res = check(&buff[4]))) {
+        if (!(res = parse(&buff[4]))) {
             ext(0);
         }
     } else if (strncmp(s, "info", 4) == 0) {
-        if (!(res = check(&s[4]))) {
+        if (!(res = parse(&s[4]))) {
             info();
         }
     } else if (strncmp(s, "prog", 4) == 0) {
-        if (!(res = check(&s[4]))) {
+        if (!(res = parse(&s[4]))) {
             prog(input, c2c);
         }
     } else if (strncmp(s, "help", 4) == 0) {
-        if (!(res = check(&s[4]))) {
+        if (!(res = parse(&s[4]))) {
             help();
         }
     } else if (strncmp(s, "ps", 2) == 0) {
-        if (!(res = check(&s[2]))) {
+        if (!(res = parse(&s[2]))) {
             show_pstree(getpid());
         }
     } else {
-        res = check(&s[0]);
+        res = parse(&s[0]);
     }
     switch (res) {
         case 1:
