@@ -59,27 +59,28 @@ int check(const char *s) {
         fprintf(stdout, "\n");
         ext(0);
     }
-    return 1; // Unknown command. Type 'help' to see the available commands
+    return 1;
 }
 
 int check_with_arg(const char *s, int *x_out) {
+    if (*s != ' ' && *s != '\t' && *s != '\n' && *s != '\0') {
+        return 1;
+    }
     while (*s == ' ' || *s == '\t') s++;
     if (*s == '\0') {
         fprintf(stdout, "\n");
         ext(0);
     }
     if (*s == '\n') {
-        return 2; // Please provide a number of workers
+        return 2;
     }
     char *endptr;
     int x = (int)strtol(s, &endptr, 10);
-    while (*endptr == ' ' || *endptr == '\t') endptr++;
-    if (*endptr != '\n') {
-        check(&endptr[0]);
-        return 3; // Invalid number of workers
+    if (check(&endptr[0])) {
+        return 3;
     }
     if (x < 0) {
-        return 4; // Number must be non-negative
+        return 4;
     }
     *x_out = x;
     return 0;
