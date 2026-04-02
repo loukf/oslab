@@ -245,5 +245,6 @@ int main(int argc, char *argv[]) {
     close(pipefd2[1]);
     for (;;) {
         read_input(argv[1], argv[2]);
+        usleep(WAIT_T);
     }
 }

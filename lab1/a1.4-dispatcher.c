@@ -238,7 +238,7 @@ int main(int argc, char *argv[]) {
         reap_workers(workers);
         dispatch(fdr, argv[2], workers);
         assign_work(chunk_size, workers);
-        // usleep(WAIT_T);
+        usleep(WAIT_T);
     }
     close(fdr);
     fprintf(stdout, "Program finished!\n");
