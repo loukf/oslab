@@ -122,7 +122,7 @@ int prog(const char *input, const char *c2c) {
         ext(1);
     }
     double percent = ((double)res[0] / (double)res[1]) * 100.0;
-    fprintf(stdout, "Progress: %.2f%% - %d instances of the character '%s' found so far in %s\n",  percent, res[2], c2c, input);
+    fprintf(stdout, "Progress: %.2f%% - %d instances of the character '%s' found so far in %s\n", percent, res[2], c2c, input);
     return 0;
 }
 
