@@ -207,6 +207,24 @@ void read_input(const char *input, const char *c2c) {
     }
 }
 
+char *decode(const char *s) {
+    static char c2c[2];
+    if (s[0] == '\\') {
+        switch(s[1]) {
+            case 'n':
+                c2c[0] = '\n';
+                break;
+            case 't':
+                c2c[0] = '\t';
+                break;
+        }
+    } else {
+        c2c[0] = s[0];
+    }
+    c2c[1] = '\0';
+    return c2c;
+}
+
 int main(int argc, char *argv[]) {
     if (argc != 3) {
         fprintf(stderr, "Usage: %s <input-file> <char>\n", argv[0]);
@@ -227,17 +245,18 @@ int main(int argc, char *argv[]) {
         perror("sigaction");
         ext(1);
     }
+    char *c2c = decode(argv[2]);
     p = fork();
     if (p < 0) {
         perror("fork");
         ext(1);
     } else if (p == 0) {
-        create_dispatcher(argv[1], argv[2]);
+        create_dispatcher(argv[1], c2c);
     }
     close(pipefd1[0]);
     close(pipefd2[1]);
     for (;;) {
-        read_input(argv[1], argv[2]);
-        usleep(LOOP_WAIT);
+        read_input(argv[1], c2c);
+        usleep(WAIT_T);
     }
 }

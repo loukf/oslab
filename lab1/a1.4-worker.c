@@ -23,7 +23,6 @@ void work(const int fdr, const char c2c) {
     ssize_t rcnt;
     rcnt = pread(fdr, buff, sizeof(buff)-1, offset);
     if (rcnt == 0) { /* end of file */
-        printf("HELLO?????????\n");
         return;
     }
     if (rcnt < 0) { /* error */

@@ -8,8 +8,11 @@
 
 #define LOOP_WAIT 100*1000
 
+<<<<<<< HEAD
 #define WORK_WAIT 1000*1000
 
+=======
+>>>>>>> new-frontend
 const char *HELP_MSG =
 "Available commands:\n"
 "   add <x>\tadd x workers (search processes)\n"
