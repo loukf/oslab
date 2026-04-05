@@ -40,7 +40,7 @@ void work(const int fdr, const char c2c) {
     usleep(WORK_WAIT);
     ssize_t l = write(pipefd2[1], &res, sizeof(res));
     if (l == 0 || errno == EPIPE) {
-        printf("exiting...\n");
+        // printf("exiting...\n");
         exit(0);
     } else if (l < 0) {
         perror("pipe_worker2");

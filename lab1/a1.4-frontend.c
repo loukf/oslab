@@ -227,13 +227,6 @@ int main(int argc, char *argv[]) {
         perror("sigaction");
         ext(1);
     }
-    struct sigaction sa_pipe;
-    sa_pipe.sa_handler = SIG_IGN;
-    sa_pipe.sa_flags = SA_RESTART;
-    if (sigaction(SIGPIPE, &sa_pipe, NULL) < 0) {
-        perror("sigaction");
-        ext(1);
-    }
     p = fork();
     if (p < 0) {
         perror("fork");

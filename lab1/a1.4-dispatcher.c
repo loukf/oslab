@@ -153,12 +153,12 @@ void dispatch(const int fdr, const char *c2c, Worker *workers, int *chunks) {
             to_spawn--;
         }
         if (to_spawn > 0) {
-            fprintf(stderr, "\n(no more available workers to add - reached max value of %d)\n> ", MAX_W);
+            fprintf(stderr, "(reached maximum worker limit of %d - cannot add any more workers)\n", MAX_W);
         }
     } else if (P < 0) {
         int to_kill = -P;
         for (int i = 0; i < MAX_W && to_kill > 0; ++i) {
-            if (workers[i].pid == -1 || workers[i].status != 1) {
+            if (workers[i].pid == -1 || workers[i].status == -1) {
                 continue;
             }
             kill_worker(&workers[i], chunks);
@@ -172,7 +172,7 @@ void dispatch(const int fdr, const char *c2c, Worker *workers, int *chunks) {
             to_kill--;
         }
         if (to_kill > 0) {
-            fprintf(stderr, "\n(no more available workers to remove - reached minimum value of 0)\n> ");
+            fprintf(stderr, "(reached minimum worker limit of 0 - cannot remove any more workers)\n");
         }
     }
 }
@@ -189,11 +189,14 @@ void assign_work(Worker *workers, int *chunks, const int chunk_size) {
         }
         int at[2] = {i, chunk_size};
         if (write(workers[checked].pipefd1[1], &at, sizeof(at)) != sizeof(at)) {
-            if (errno != EPIPE) {
-                perror("pipe_dispatcher");
-                exit(1);
+            if (errno == EPIPE) {
+                cleanup_worker(&workers[checked], chunks);
+                checked++;
+                i--;
+                continue;
             }
-            continue;
+            perror("pipe_dispatcher");
+            exit(1);
         }
         workers[checked].status = i;
         chunks[i] = 1;
@@ -219,6 +222,11 @@ void read_result(Worker *workers, int *chunks) {
         res[2] += at[1];
         res[0]++;
     }
+}
+
+int init_chunks(off_t end) {
+    res[1] = end < CHUNK_NUM ? end : CHUNK_NUM;
+    return (end-1)/res[1]+1;
 }
 
 int main(int argc, char *argv[]) {
@@ -262,13 +270,8 @@ int main(int argc, char *argv[]) {
         perror("fstat");
         exit(1);
     }
-    off_t end = st.st_size;
-    res[1] = end < CHUNK_NUM ? end : CHUNK_NUM;
-    int chunk_size = (end-1)/res[1]+1;
-    int chunks[CHUNK_NUM];
-    for (int i = 0; i < CHUNK_NUM; ++i) {
-        chunks[i] = 0;
-    }
+    int chunk_size = init_chunks(st.st_size);
+    int chunks[CHUNK_NUM] = {0};
     Worker workers[MAX_W];
     for (int i = 0; i < MAX_W; ++i) {
         workers[i].pid = -1;
