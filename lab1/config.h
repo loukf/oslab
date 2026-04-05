@@ -2,11 +2,13 @@
 
 #define CHUNK 1024
 
-#define MAX_W 256
-
 #define CHUNK_NUM 1024
 
-#define WAIT_T 500 * 1000
+#define MAX_W 256
+
+#define LOOP_WAIT 100*1000
+
+#define WORK_WAIT 1000*1000
 
 const char *HELP_MSG =
 "Available commands:\n"
