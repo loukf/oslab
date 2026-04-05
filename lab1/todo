@@ -1,0 +1,3 @@
+[x] fix all bugs
+[ ] make a table that says which worker reads what currently
+[ ] create queue for adding/subbing workers

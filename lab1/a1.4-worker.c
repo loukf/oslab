@@ -12,22 +12,22 @@ void work(const int fdr, const char c2c) {
     int at[2] = {0, 0};
     ssize_t n = read(pipefd1[0], &at, sizeof(at));
     if (n < 0) {
-        perror("pipe_worker0");
+        perror("pipe_worker");
         exit(1);
-    } else if (n == 0 || errno == EPIPE) {
+    } else if (n == 0) {
         exit(0);
     }
     int offset = at[0]*at[1];
     int end = at[1];
     char buff[end+1];
     ssize_t rcnt;
-    // printf("worker starting at chunk[%d]\n", at[0]);
     rcnt = pread(fdr, buff, sizeof(buff)-1, offset);
     if (rcnt == 0) { /* end of file */
+        printf("HELLO?????????\n");
         return;
     }
     if (rcnt < 0) { /* error */
-        perror("pipe_worker1");
+        perror("pipe_worker");
         exit(1);
     }
     buff[rcnt] = '\0';
@@ -38,15 +38,13 @@ void work(const int fdr, const char c2c) {
         }
     }
     usleep(WORK_WAIT);
-    ssize_t l = write(pipefd2[1], &res, sizeof(res));
-    if (l == 0 || errno == EPIPE) {
-        // printf("exiting...\n");
+    if (write(pipefd2[1], &res, sizeof(res)) != sizeof(res)) {
+        if (errno != EPIPE) {
+            perror("pipe_worker");
+            exit(1);
+        }
         exit(0);
-    } else if (l < 0) {
-        perror("pipe_worker2");
-        exit(1);
     }
-    // printf("worker with pid %d read %d occurences at chunk[%d]\n", getpid(), res[1], res[0]);
 }
 
 int main(int argc, char *argv[]) {

@@ -112,7 +112,7 @@ void kill_worker(Worker *w, int *chunks) {
 
 void reap_workers(Worker *workers, int *chunks) {
     int status;
-    for (int i = 0; i < MAX_W; i++) {
+    for (int i = 0; i < MAX_WORKERS; i++) {
         if (workers[i].pid == -1) {
             continue;
         }
@@ -145,7 +145,7 @@ void dispatch(const int fdr, const char *c2c, Worker *workers, int *chunks) {
     }
     if (P > 0) {
         int to_spawn = P;
-        for (int i = 0; i < MAX_W && to_spawn > 0; ++i) {
+        for (int i = 0; i < MAX_WORKERS && to_spawn > 0; ++i) {
             if (workers[i].pid > 0) {
                 continue;
             }
@@ -153,18 +153,18 @@ void dispatch(const int fdr, const char *c2c, Worker *workers, int *chunks) {
             to_spawn--;
         }
         if (to_spawn > 0) {
-            fprintf(stderr, "(reached maximum worker limit of %d - cannot add any more workers)\n", MAX_W);
+            fprintf(stderr, "(reached maximum worker limit of %d - cannot add any more workers)\n", MAX_WORKERS);
         }
     } else if (P < 0) {
         int to_kill = -P;
-        for (int i = 0; i < MAX_W && to_kill > 0; ++i) {
+        for (int i = 0; i < MAX_WORKERS && to_kill > 0; ++i) {
             if (workers[i].pid == -1 || workers[i].status == -1) {
                 continue;
             }
             kill_worker(&workers[i], chunks);
             to_kill--;
         }
-        for (int i = 0; i < MAX_W && to_kill > 0; ++i) {
+        for (int i = 0; i < MAX_WORKERS && to_kill > 0; ++i) {
             if (workers[i].pid == -1) {
                 continue;
             }
@@ -183,20 +183,20 @@ void assign_work(Worker *workers, int *chunks, const int chunk_size) {
         if (chunks[i] != 0) {
             continue;
         }
-        while (checked < MAX_W && (workers[checked].pid == -1 || workers[checked].status != -1)) checked++;
-        if (checked >= MAX_W) {
+        while (checked < MAX_WORKERS && (workers[checked].pid == -1 || workers[checked].status != -1)) checked++;
+        if (checked >= MAX_WORKERS) {
             break;
         }
         int at[2] = {i, chunk_size};
         if (write(workers[checked].pipefd1[1], &at, sizeof(at)) != sizeof(at)) {
-            if (errno == EPIPE) {
-                cleanup_worker(&workers[checked], chunks);
-                checked++;
-                i--;
-                continue;
+            if (errno != EPIPE) {
+                perror("pipe_dispatcher");
+                exit(1);
             }
-            perror("pipe_dispatcher");
-            exit(1);
+            cleanup_worker(&workers[checked], chunks);
+            checked++;
+            i--;
+            continue;
         }
         workers[checked].status = i;
         chunks[i] = 1;
@@ -205,7 +205,7 @@ void assign_work(Worker *workers, int *chunks, const int chunk_size) {
 }
 
 void read_result(Worker *workers, int *chunks) {
-    for (int i = 0; i < MAX_W; ++i) {
+    for (int i = 0; i < MAX_WORKERS; ++i) {
         if (workers[i].pid == -1 || workers[i].status == -1)  {
             continue;
         }
@@ -225,7 +225,7 @@ void read_result(Worker *workers, int *chunks) {
 }
 
 int init_chunks(off_t end) {
-    res[1] = end < CHUNK_NUM ? end : CHUNK_NUM;
+    res[1] = end < MAX_CHUNKS ? end : MAX_CHUNKS;
     return (end-1)/res[1]+1;
 }
 
@@ -271,9 +271,12 @@ int main(int argc, char *argv[]) {
         exit(1);
     }
     int chunk_size = init_chunks(st.st_size);
-    int chunks[CHUNK_NUM] = {0};
-    Worker workers[MAX_W];
-    for (int i = 0; i < MAX_W; ++i) {
+    int chunks[res[1]];
+    for (int i = 0; i < res[1]; ++i) {
+        chunks[i] = 0;
+    }
+    Worker workers[MAX_WORKERS];
+    for (int i = 0; i < MAX_WORKERS; ++i) {
         workers[i].pid = -1;
     }
     while (res[0] < res[1]) {

@@ -2,9 +2,9 @@
 
 #define CHUNK 1024
 
-#define CHUNK_NUM 1024
+#define MAX_CHUNKS 1024
 
-#define MAX_W 256
+#define MAX_WORKERS 256
 
 #define LOOP_WAIT 100*1000
 
