@@ -84,7 +84,9 @@ void cleanup_worker(Worker *w, int *chunks) {
     }
     close(w->pipefd1[1]);
     close(w->pipefd2[0]);
-    chunks[w->status] = 0;
+    if (w->status != -1) {
+        chunks[w->status] = 0;
+    }
     w->pid = -1;
     w->status = -1;
     current_workers--;
@@ -153,7 +155,7 @@ void dispatch(const int fdr, const char *c2c, Worker *workers, int *chunks) {
             to_spawn--;
         }
         if (to_spawn > 0) {
-            fprintf(stderr, "(reached maximum worker limit of %d - cannot add any more workers)\n", MAX_WORKERS);
+            fprintf(stderr, "[Dispatcher] cannot add more workers - already at maximum (%d)\n", MAX_WORKERS);
         }
     } else if (P < 0) {
         int to_kill = -P;
@@ -172,7 +174,7 @@ void dispatch(const int fdr, const char *c2c, Worker *workers, int *chunks) {
             to_kill--;
         }
         if (to_kill > 0) {
-            fprintf(stderr, "(reached minimum worker limit of 0 - cannot remove any more workers)\n");
+            fprintf(stderr, "[Dispatcher] cannot remove more workers - already at minimum (0)\n");
         }
     }
 }

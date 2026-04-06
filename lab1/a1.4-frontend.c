@@ -10,7 +10,7 @@ pid_t p;
 int pipefd1[2];
 int pipefd2[2];
 
-void sigchldhandler(int signum) {
+void sigchld_handler(int signum) {
     int status;
     pid_t pid;
     if ((pid = waitpid(p, &status, WNOHANG)) < 0) {
@@ -26,6 +26,9 @@ void sigchldhandler(int signum) {
     } else if (WIFEXITED(status)) {
         exit(WEXITSTATUS(status));
     }
+}
+
+void sig_finish_handler(int signum) {
 }
 
 int ext(int n) {
@@ -207,24 +210,6 @@ void read_input(const char *input, const char *c2c) {
     }
 }
 
-char *decode(const char *s) {
-    static char c2c[2];
-    if (s[0] == '\\') {
-        switch(s[1]) {
-            case 'n':
-                c2c[0] = '\n';
-                break;
-            case 't':
-                c2c[0] = '\t';
-                break;
-        }
-    } else {
-        c2c[0] = s[0];
-    }
-    c2c[1] = '\0';
-    return c2c;
-}
-
 int main(int argc, char *argv[]) {
     if (argc != 3) {
         fprintf(stderr, "Usage: %s <input-file> <char>\n", argv[0]);
@@ -239,24 +224,24 @@ int main(int argc, char *argv[]) {
         ext(1);
     }
     struct sigaction sa;
-    sa.sa_handler = sigchldhandler;
+    sa.sa_handler = sigchld_handler;
     sa.sa_flags = SA_RESTART;
     if (sigaction(SIGCHLD, &sa, NULL) < 0) {
         perror("sigaction");
         ext(1);
     }
-    char *c2c = decode(argv[2]);
     p = fork();
     if (p < 0) {
         perror("fork");
         ext(1);
     } else if (p == 0) {
-        create_dispatcher(argv[1], c2c);
+        create_dispatcher(argv[1], argv[2]);
     }
     close(pipefd1[0]);
     close(pipefd2[1]);
-    for (;;) {
-        read_input(argv[1], c2c);
+    int finish = 0;
+    while (!finish) {
+        read_input(argv[1], argv[2]);
         usleep(LOOP_WAIT);
     }
 }
