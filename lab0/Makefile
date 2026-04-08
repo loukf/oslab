@@ -11,3 +11,6 @@ zing2.o: zing2.c
 
 main.o: main.c
 	gcc -Wall -c main.c
+
+clean:
+	rm main.o zing2.o zing2 zing
