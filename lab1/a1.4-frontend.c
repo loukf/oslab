@@ -28,9 +28,6 @@ void sigchld_handler(int signum) {
     }
 }
 
-void sig_finish_handler(int signum) {
-}
-
 int ext(int n) {
     if (kill(p, 2) < 0) {
         perror("kill");
