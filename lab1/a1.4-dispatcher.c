@@ -131,12 +131,6 @@ void reap_workers(Worker *workers, int *chunks) {
 }
 
 void dispatch(const int fdr, const char *c2c, Worker *workers, int *chunks) {
-    static int flags_set = 0;
-    if (!flags_set) {
-        int flags = fcntl(front_pipefd1[0], F_GETFL, 0);
-        fcntl(front_pipefd1[0], F_SETFL, flags | O_NONBLOCK);
-        flags_set = 1;
-    }
     int P;
     if (read(front_pipefd1[0], &P, sizeof(int)) != sizeof(int)) {
         if (errno != EINTR && errno != EWOULDBLOCK) {
@@ -261,6 +255,15 @@ int main(int argc, char *argv[]) {
         perror("sigaction");
         exit(1);
     }
+    int flags = fcntl(front_pipefd1[0], F_GETFL, 0);
+    if (flags == -1) {
+        perror("fcntl GETFL");
+        exit(1);
+    }
+    if (fcntl(front_pipefd1[0], F_SETFL, flags | O_NONBLOCK) == -1) {
+        perror("fcntl SETFL");
+        exit(1);
+    }
     int fdr;
     fdr = open(argv[1], O_RDONLY);
     if (fdr < 0) {
@@ -273,8 +276,8 @@ int main(int argc, char *argv[]) {
         exit(1);
     }
     int chunk_size = init_chunks(st.st_size);
-    int chunks[res[1]];
-    for (int i = 0; i < res[1]; ++i) {
+    int chunks[MAX_CHUNKS];
+    for (int i = 0; i < MAX_CHUNKS; ++i) {
         chunks[i] = 0;
     }
     Worker workers[MAX_WORKERS];

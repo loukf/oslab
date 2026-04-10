@@ -28,14 +28,6 @@ void sigchld_handler(int signum) {
     }
 }
 
-int ext(int n) {
-    if (kill(p, 2) < 0) {
-        perror("kill");
-        exit(-1);
-    }
-    exit(n);
-}
-
 void show_pstree(pid_t p) {
     int ret;
     char cmd[CHUNK];
@@ -44,7 +36,7 @@ void show_pstree(pid_t p) {
     ret = system(cmd);
     if (ret < 0) {
         perror("system");
-        ext(104);
+        exit(104);
     }
 }
 
@@ -56,7 +48,7 @@ int parse(const char *s) {
     while (*s != '\n' && *s != '\0') s++;
     if (*s == '\0') {
         fprintf(stdout, "\n");
-        ext(0);
+        exit(0);
     }
     return 1;
 }
@@ -68,7 +60,7 @@ int parse_with_arg(const char *s, int *x_out) {
     while (*s == ' ' || *s == '\t') s++;
     if (*s == '\0') {
         fprintf(stdout, "\n");
-        ext(0);
+        exit(0);
     }
     if (*s == '\n') {
         return 2;
@@ -89,41 +81,38 @@ void help(void) {
     fprintf(stdout, HELP_MSG);
 }                     
 
-int add(const int x) {
+void add(const int x) {
     if (write(pipefd1[1], &x, sizeof(int)) != sizeof(int)) {
         perror("pipe_frontend");
-        ext(1);
+        exit(1);
     }
-    return 0;
 }
 
-int info(void) {
+void info(void) {
     int x;
     if (kill(p, SIGUSR1) < 0) {
         perror("kill");
-        ext(-1);
+        exit(-1);
     }
     if (read(pipefd2[0], &x, sizeof(int)) != sizeof(int)) {
         perror("pipe_frontend");
-        ext(1);
+        exit(1);
     }
     fprintf(stdout, "Concurrent workers: %d\n", x);
-    return 0;
 }
 
-int prog(const char *input, const char *c2c) {
+void prog(const char *input, const char *c2c) {
     int res[3];
     if (kill(p, SIGUSR2) < 0) {
         perror("kill");
-        ext(1);
+        exit(1);
     }
     if (read(pipefd2[0], &res, sizeof(res)) != sizeof(res)) {
         perror("pipe_frontend");
-        ext(1);
+        exit(1);
     }
     double percent = ((double)res[0] / (double)res[1]) * 100.0;
-    fprintf(stdout, "Progress: %.2f%% - %d instances of the character '%s' found so far in %s\n", percent, res[2], c2c, input);
-    return 0;
+    fprintf(stdout, "Progress: %.2f%% - %d instances of the character '%c' found so far in %s\n", percent, res[2], c2c[0], input);
 }
 
 void create_dispatcher(const char *input, const char *c2c) {
@@ -145,11 +134,11 @@ void read_input(const char *input, const char *c2c) {
     rcnt = read(0, buff, sizeof(buff)-1);
     if (rcnt == 0) { /* end-of-file */
         fprintf(stdout, "\n");
-        ext(0);
+        exit(0);
     }
     if (rcnt < 0) { /* error */
         perror("read");
-        ext(1);
+        exit(1);
     }
     buff[rcnt] = '\0';
     int x, res;
@@ -159,7 +148,7 @@ void read_input(const char *input, const char *c2c) {
         return;
     } else if (*s == '\0') {
         fprintf(stdout, "\n");
-        ext(0); 
+        exit(0); 
     } else if (strncmp(s, "add", 3) == 0) {
         if (!(res = parse_with_arg(&s[3], &x))) {
             add(x);
@@ -170,7 +159,7 @@ void read_input(const char *input, const char *c2c) {
         }
     } else if (strncmp(s, "exit", 4) == 0) {
         if (!(res = parse(&buff[4]))) {
-            ext(0);
+            exit(0);
         }
     } else if (strncmp(s, "info", 4) == 0) {
         if (!(res = parse(&s[4]))) {
@@ -214,30 +203,29 @@ int main(int argc, char *argv[]) {
     }
     if ((pipe(pipefd1)) < 0) {
         perror("pipe_frontend");
-        ext(1);
+        exit(1);
     }
     if ((pipe(pipefd2)) < 0) {
         perror("pipe_frontend");
-        ext(1);
+        exit(1);
     }
     struct sigaction sa;
     sa.sa_handler = sigchld_handler;
     sa.sa_flags = SA_RESTART;
     if (sigaction(SIGCHLD, &sa, NULL) < 0) {
         perror("sigaction");
-        ext(1);
+        exit(1);
     }
     p = fork();
     if (p < 0) {
         perror("fork");
-        ext(1);
+        exit(1);
     } else if (p == 0) {
         create_dispatcher(argv[1], argv[2]);
     }
     close(pipefd1[0]);
     close(pipefd2[1]);
-    int finish = 0;
-    while (!finish) {
+    for (;;) {
         read_input(argv[1], argv[2]);
         usleep(LOOP_WAIT);
     }
