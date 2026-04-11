@@ -95,7 +95,7 @@ void print_table(const int res[MAX_WORKERS][2]) {
         }
         fprintf(stdout, "| %9d | %10d |", i, res[i][0]);
         if (res[i][1] == -1) {
-            fprintf(stdout, " %5s |\n", "IDLE");
+            fprintf(stdout, " %5s |\n", "-");
         } else {
             fprintf(stdout, " %5d |\n", res[i][1]);
         }
