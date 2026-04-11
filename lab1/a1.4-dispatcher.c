@@ -14,6 +14,7 @@ typedef struct {
     int pipefd2[2];
 } Worker;
 
+Worker workers[MAX_WORKERS];
 int current_workers = 0;
 int res[3] = {0, 0, 0};
 
@@ -24,6 +25,13 @@ void sig_info_handler(int signum) {
     if (write(front_pipefd2[1], &current_workers, sizeof(int)) != sizeof(int)) {
         perror("pipe_dispatcher");
         exit(1);
+    }
+    for (int i = 0; i < MAX_WORKERS; ++i) {
+        if (workers[i].pid == -1) {
+            continue;
+        }
+        int res[2] = { workers[i].pid, workers[i].status };
+        write(front_pipefd2[1], &res, sizeof(res));
     }
 }
 
@@ -78,7 +86,7 @@ pid_t exec_worker(const int fdr, const char *c2c, Worker *w) {
     return p;
 }
 
-void cleanup_worker(Worker *w, int *chunks) {
+void cleanup_worker(int *chunks, Worker *w) {
     if (w->pid == -1) {
         return;
     }
@@ -92,7 +100,7 @@ void cleanup_worker(Worker *w, int *chunks) {
     current_workers--;
 }
 
-void kill_worker(Worker *w, int *chunks) {
+void kill_worker(int *chunks, Worker *w) {
     if (w->pid == -1) {
         return ;
     }
@@ -109,10 +117,10 @@ void kill_worker(Worker *w, int *chunks) {
             exit(1);
         }
     }
-    cleanup_worker(w, chunks);
+    cleanup_worker(chunks, w);
 }
 
-void reap_workers(Worker *workers, int *chunks) {
+void reap_workers(int *chunks) {
     int status;
     for (int i = 0; i < MAX_WORKERS; i++) {
         if (workers[i].pid == -1) {
@@ -126,11 +134,31 @@ void reap_workers(Worker *workers, int *chunks) {
             perror("waitpid");
             exit(1);
         }
-        cleanup_worker(&workers[i], chunks);
+        cleanup_worker(chunks, &workers[i]);
     }
 }
 
-void dispatch(const int fdr, const char *c2c, Worker *workers, int *chunks) {
+void read_result(int *chunks) {
+    for (int i = 0; i < MAX_WORKERS; ++i) {
+        if (workers[i].pid == -1 || workers[i].status == -1)  {
+            continue;
+        }
+        int at[2];
+        if (read(workers[i].pipefd2[0], &at, sizeof(at)) != sizeof(at)) {
+            if (errno != EINTR && errno != EWOULDBLOCK) {
+                perror("pipe_dispatcher");
+                exit(1);
+            }
+            continue;
+        }
+        workers[i].status = -1;
+        chunks[at[0]] = 2;
+        res[2] += at[1];
+        res[0]++;
+    }
+}
+
+void dispatch(const int fdr, const char *c2c, int *chunks) {
     int P;
     if (read(front_pipefd1[0], &P, sizeof(int)) != sizeof(int)) {
         if (errno != EINTR && errno != EWOULDBLOCK) {
@@ -157,14 +185,14 @@ void dispatch(const int fdr, const char *c2c, Worker *workers, int *chunks) {
             if (workers[i].pid == -1 || workers[i].status == -1) {
                 continue;
             }
-            kill_worker(&workers[i], chunks);
+            kill_worker(chunks, &workers[i]);
             to_kill--;
         }
         for (int i = 0; i < MAX_WORKERS && to_kill > 0; ++i) {
             if (workers[i].pid == -1) {
                 continue;
             }
-            kill_worker(&workers[i], chunks);
+            kill_worker(chunks, &workers[i]);
             to_kill--;
         }
         if (to_kill > 0) {
@@ -173,7 +201,7 @@ void dispatch(const int fdr, const char *c2c, Worker *workers, int *chunks) {
     }
 }
 
-void assign_work(Worker *workers, int *chunks, const int chunk_size) {
+void assign_work(int *chunks, const int chunk_size) {
     int checked = 0;
     for (int i = 0; i < res[1]; ++i) {
         if (chunks[i] != 0) {
@@ -189,7 +217,7 @@ void assign_work(Worker *workers, int *chunks, const int chunk_size) {
                 perror("pipe_dispatcher");
                 exit(1);
             }
-            cleanup_worker(&workers[checked], chunks);
+            cleanup_worker(chunks, &workers[checked]);
             checked++;
             i--;
             continue;
@@ -200,29 +228,15 @@ void assign_work(Worker *workers, int *chunks, const int chunk_size) {
     }
 }
 
-void read_result(Worker *workers, int *chunks) {
-    for (int i = 0; i < MAX_WORKERS; ++i) {
-        if (workers[i].pid == -1 || workers[i].status == -1)  {
-            continue;
-        }
-        int at[2];
-        if (read(workers[i].pipefd2[0], &at, sizeof(at)) != sizeof(at)) {
-            if (errno != EINTR && errno != EWOULDBLOCK) {
-                perror("pipe_dispatcher");
-                exit(1);
-            }
-            continue;
-        }
-        workers[i].status = -1;
-        chunks[at[0]] = 2;
-        res[2] += at[1];
-        res[0]++;
+const int compute_chunks(const off_t end) {
+    int chunk_size;
+    if (end < 10*CHUNK_BIG) {
+        chunk_size = CHUNK_SMALL;
+    } else {
+        chunk_size = CHUNK_BIG;
     }
-}
-
-int calc_chunk_size(off_t end) {
-    res[1] = end/4 < MAX_CHUNKS ? end/4 : MAX_CHUNKS;
-    return (end-1)/res[1]+1;
+    res[1] = (end-1) / chunk_size + 1;
+    return chunk_size;
 }
 
 const char *decode(const char *s) {
@@ -250,18 +264,18 @@ const char *decode(const char *s) {
 
 int main(int argc, char *argv[]) {
     if (argc != 5) {
-        fprintf(stdout, "error: Bad dispatcher initialization\n");
+        fprintf(stdout, "Error: Bad dispatcher initialization\n");
         return 1;
     }
     char *endptr;
     front_pipefd1[0] = (int)strtol(argv[3], &endptr, 10);
     if (*endptr != '\0') {
-        fprintf(stderr, "error: Invalid pipe FD: %s\n", argv[3]);
+        fprintf(stderr, "Error: Invalid pipe FD: %s\n", argv[3]);
         return 1;
     }
     front_pipefd2[1] = (int)strtol(argv[4], &endptr, 10);
     if (*endptr != '\0') {
-        fprintf(stderr, "error: Invalid pipe FD: %s\n", argv[4]);
+        fprintf(stderr, "Error: Invalid pipe FD: %s\n", argv[4]);
         return 1;
     }
     struct sigaction sa_info;
@@ -278,6 +292,15 @@ int main(int argc, char *argv[]) {
         perror("sigaction");
         exit(1);
     }
+    int flags = fcntl(front_pipefd1[0], F_GETFL, 0);
+    if (flags == -1) {
+        perror("fcntl GETFL");
+        exit(1);
+    }
+    if (fcntl(front_pipefd1[0], F_SETFL, flags | O_NONBLOCK) == -1) {
+        perror("fcntl SETFL");
+        exit(1);
+    }
     int fdr;
     fdr = open(argv[1], O_RDONLY);
     if (fdr < 0) {
@@ -289,30 +312,25 @@ int main(int argc, char *argv[]) {
         perror("fstat");
         exit(1);
     }
-    int chunk_size = calc_chunk_size(st.st_size);
-    int flags = fcntl(front_pipefd1[0], F_GETFL, 0);
-    if (flags == -1) {
-        perror("fcntl GETFL");
-        exit(1);
+    if (st.st_size == 0) {
+        fprintf(stderr, "Error: Empty file\n");
+        close(fdr);
+        return 1;
     }
-    if (fcntl(front_pipefd1[0], F_SETFL, flags | O_NONBLOCK) == -1) {
-        perror("fcntl SETFL");
-        exit(1);
-    }
-    int chunks[MAX_CHUNKS];
-    for (int i = 0; i < MAX_CHUNKS; ++i) {
+    const int chunk_size = compute_chunks(st.st_size);
+    const char *c2c = decode(argv[2]);
+    int chunks[res[1]];
+    for (int i = 0; i < res[1]; ++i) {
         chunks[i] = 0;
     }
-    Worker workers[MAX_WORKERS];
     for (int i = 0; i < MAX_WORKERS; ++i) {
         workers[i].pid = -1;
     }
-    const char *c2c = decode(argv[2]);
     while (res[0] < res[1]) {
-        reap_workers(workers, chunks);
-        read_result(workers, chunks);
-        dispatch(fdr, c2c, workers, chunks);
-        assign_work(workers, chunks, chunk_size);
+        reap_workers(chunks);
+        read_result(chunks);
+        dispatch(fdr, c2c, chunks);
+        assign_work(chunks, chunk_size);
         usleep(LOOP_WAIT);
     }
     close(fdr);

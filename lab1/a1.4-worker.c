@@ -48,23 +48,23 @@ void work(const int fdr, const char c2c) {
 
 int main(int argc, char *argv[]) {
     if (argc != 5) {
-        fprintf(stderr, "error: Bad worker initialization\n");
+        fprintf(stderr, "Error: Bad worker initialization\n");
         return 1;
     }
     char *endptr;
     int fdr = (int)strtol(argv[1], &endptr, 10);
     if (*endptr != '\0') {
-        fprintf(stderr, "error: Invalid input FD: %s\n", argv[1]);
+        fprintf(stderr, "Error: Invalid input FD: %s\n", argv[1]);
         return 1;
     }
     pipefd1[0] = (int)strtol(argv[3], &endptr, 10);
     if (*endptr != '\0') {
-        fprintf(stderr, "error: Invalid pipe FD: %s\n", argv[3]);
+        fprintf(stderr, "Error: Invalid pipe FD: %s\n", argv[3]);
         return 1;
     }
     pipefd2[1] = (int)strtol(argv[4], &endptr, 10);
     if (*endptr != '\0') {
-        fprintf(stderr, "error: Invalid pipe FD: %s\n", argv[4]);
+        fprintf(stderr, "Error: Invalid pipe FD: %s\n", argv[4]);
         return 1;
     }
     for (;;) {

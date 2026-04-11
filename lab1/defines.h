@@ -1,8 +1,10 @@
 #pragma once
 
-#define CHUNK 1024
+#define CHUNK_MSG 1024
 
-#define MAX_CHUNKS 1024
+#define CHUNK_SMALL 12
+
+#define CHUNK_BIG 1024
 
 #define MAX_WORKERS 256
 
