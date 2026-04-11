@@ -5,7 +5,7 @@
 #include <sys/stat.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include "config.h"
+#include "defines.h"
 
 typedef struct {
     int pid;
@@ -149,7 +149,7 @@ void dispatch(const int fdr, const char *c2c, Worker *workers, int *chunks) {
             to_spawn--;
         }
         if (to_spawn > 0) {
-            fprintf(stderr, "[Dispatcher] cannot add more workers - already at maximum (%d)\n", MAX_WORKERS);
+            fprintf(stderr, "\b\b[Dispatcher] cannot add more workers - already at maximum (%d)\n> ", MAX_WORKERS);
         }
     } else if (P < 0) {
         int to_kill = -P;
@@ -168,7 +168,7 @@ void dispatch(const int fdr, const char *c2c, Worker *workers, int *chunks) {
             to_kill--;
         }
         if (to_kill > 0) {
-            fprintf(stderr, "[Dispatcher] cannot remove more workers - already at minimum (0)\n");
+            fprintf(stderr, "\b\b[Dispatcher] cannot remove more workers - already at minimum (0)\n> ");
         }
     }
 }
@@ -255,15 +255,6 @@ int main(int argc, char *argv[]) {
         perror("sigaction");
         exit(1);
     }
-    int flags = fcntl(front_pipefd1[0], F_GETFL, 0);
-    if (flags == -1) {
-        perror("fcntl GETFL");
-        exit(1);
-    }
-    if (fcntl(front_pipefd1[0], F_SETFL, flags | O_NONBLOCK) == -1) {
-        perror("fcntl SETFL");
-        exit(1);
-    }
     int fdr;
     fdr = open(argv[1], O_RDONLY);
     if (fdr < 0) {
@@ -276,6 +267,15 @@ int main(int argc, char *argv[]) {
         exit(1);
     }
     int chunk_size = init_chunks(st.st_size);
+    int flags = fcntl(front_pipefd1[0], F_GETFL, 0);
+    if (flags == -1) {
+        perror("fcntl GETFL");
+        exit(1);
+    }
+    if (fcntl(front_pipefd1[0], F_SETFL, flags | O_NONBLOCK) == -1) {
+        perror("fcntl SETFL");
+        exit(1);
+    }
     int chunks[MAX_CHUNKS];
     for (int i = 0; i < MAX_CHUNKS; ++i) {
         chunks[i] = 0;
@@ -293,5 +293,5 @@ int main(int argc, char *argv[]) {
     }
     close(fdr);
     fprintf(stdout, "Program finished!\n");
-    fprintf(stdout, "The character '%c' appears %d times in file %s.\n", argv[2][0], res[2], argv[1]);
+    fprintf(stdout, "The character '%s' appears %d times in file %s.\n", argv[2], res[2], argv[1]);
 }

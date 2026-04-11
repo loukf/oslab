@@ -3,7 +3,7 @@
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include "config.h"
+#include "defines.h"
 
 int pipefd1[2];
 int pipefd2[2];
@@ -69,6 +69,5 @@ int main(int argc, char *argv[]) {
     }
     for (;;) {
         work(fdr, argv[2][0]);
-        usleep(LOOP_WAIT);
     }
 }

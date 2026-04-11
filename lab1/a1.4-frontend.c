@@ -4,7 +4,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "config.h"
+#include "defines.h"
 
 pid_t p;
 int pipefd1[2];
@@ -21,11 +21,19 @@ void sigchld_handler(int signum) {
         return;
     }
     if (WIFSIGNALED(status)) {
-        fprintf(stdout, "\n");
-        exit(WTERMSIG(status));
+        write(1, "\n", 1);
+        _exit(WTERMSIG(status));
     } else if (WIFEXITED(status)) {
-        exit(WEXITSTATUS(status));
+        _exit(WEXITSTATUS(status));
     }
+}
+
+int ext(int n) {
+    if (kill(p, 9) < 0) {
+        perror("kill");
+        exit(-1);
+    }
+    exit(n);
 }
 
 void show_pstree(pid_t p) {
@@ -36,7 +44,7 @@ void show_pstree(pid_t p) {
     ret = system(cmd);
     if (ret < 0) {
         perror("system");
-        exit(104);
+        ext(104);
     }
 }
 
@@ -48,7 +56,7 @@ int parse(const char *s) {
     while (*s != '\n' && *s != '\0') s++;
     if (*s == '\0') {
         fprintf(stdout, "\n");
-        exit(0);
+        ext(0);
     }
     return 1;
 }
@@ -60,7 +68,7 @@ int parse_with_arg(const char *s, int *x_out) {
     while (*s == ' ' || *s == '\t') s++;
     if (*s == '\0') {
         fprintf(stdout, "\n");
-        exit(0);
+        ext(0);
     }
     if (*s == '\n') {
         return 2;
@@ -78,13 +86,20 @@ int parse_with_arg(const char *s, int *x_out) {
 }
 
 void help(void) {
-    fprintf(stdout, HELP_MSG);
+    fprintf(stdout, 
+            "Available commands:\n"
+            "   add <x>\tadd x workers (search processes)\n"
+            "   sub <x>\tremove x workers\n"
+            "   info\t\tdisplay information about active workers\n"
+            "   prog\t\tshow current search progress\n"
+            "   help\t\tdisplay this help message\n"
+            "   exit\t\texit the program\n");
 }                     
 
 void add(const int x) {
     if (write(pipefd1[1], &x, sizeof(int)) != sizeof(int)) {
         perror("pipe_frontend");
-        exit(1);
+        ext(1);
     }
 }
 
@@ -92,11 +107,11 @@ void info(void) {
     int x;
     if (kill(p, SIGUSR1) < 0) {
         perror("kill");
-        exit(-1);
+        ext(-1);
     }
     if (read(pipefd2[0], &x, sizeof(int)) != sizeof(int)) {
         perror("pipe_frontend");
-        exit(1);
+        ext(1);
     }
     fprintf(stdout, "Concurrent workers: %d\n", x);
 }
@@ -105,14 +120,14 @@ void prog(const char *input, const char *c2c) {
     int res[3];
     if (kill(p, SIGUSR2) < 0) {
         perror("kill");
-        exit(1);
+        ext(1);
     }
     if (read(pipefd2[0], &res, sizeof(res)) != sizeof(res)) {
         perror("pipe_frontend");
-        exit(1);
+        ext(1);
     }
     double percent = ((double)res[0] / (double)res[1]) * 100.0;
-    fprintf(stdout, "Progress: %.2f%% - %d instances of the character '%c' found so far in %s\n", percent, res[2], c2c[0], input);
+    fprintf(stdout, "Progress: %.2f%% - %d instances of the character '%s' found so far in %s\n", percent, res[2], c2c, input);
 }
 
 void create_dispatcher(const char *input, const char *c2c) {
@@ -134,11 +149,11 @@ void read_input(const char *input, const char *c2c) {
     rcnt = read(0, buff, sizeof(buff)-1);
     if (rcnt == 0) { /* end-of-file */
         fprintf(stdout, "\n");
-        exit(0);
+        ext(0);
     }
     if (rcnt < 0) { /* error */
         perror("read");
-        exit(1);
+        ext(1);
     }
     buff[rcnt] = '\0';
     int x, res;
@@ -148,7 +163,7 @@ void read_input(const char *input, const char *c2c) {
         return;
     } else if (*s == '\0') {
         fprintf(stdout, "\n");
-        exit(0); 
+        ext(0); 
     } else if (strncmp(s, "add", 3) == 0) {
         if (!(res = parse_with_arg(&s[3], &x))) {
             add(x);
@@ -158,8 +173,8 @@ void read_input(const char *input, const char *c2c) {
             add(-x);
         }
     } else if (strncmp(s, "exit", 4) == 0) {
-        if (!(res = parse(&buff[4]))) {
-            exit(0);
+        if (!(res = parse(&s[4]))) {
+            ext(0);
         }
     } else if (strncmp(s, "info", 4) == 0) {
         if (!(res = parse(&s[4]))) {
@@ -227,6 +242,5 @@ int main(int argc, char *argv[]) {
     close(pipefd2[1]);
     for (;;) {
         read_input(argv[1], argv[2]);
-        usleep(LOOP_WAIT);
     }
 }
