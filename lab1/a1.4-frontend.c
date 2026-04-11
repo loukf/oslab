@@ -36,36 +36,6 @@ int ext(int n) {
     exit(n);
 }
 
-void show_pstree(pid_t p) {
-    int ret;
-    char cmd[CHUNK_MSG];
-    snprintf(cmd, sizeof(cmd), "echo; pstree -a -G -c -p %ld; echo", (long)p);
-    cmd[sizeof(cmd)-1] = '\0';
-    ret = system(cmd);
-    if (ret < 0) {
-        perror("system");
-        ext(104);
-    }
-}
-
-void print_table(const int res[MAX_WORKERS][2]) {
-    fprintf(stdout, "+-----------+------------+---------+\n");
-    fprintf(stdout, "| WORKER ID | WORKER PID | READING |\n");
-    fprintf(stdout, "+-----------+------------+---------+\n");
-    for (int i = 0; i < MAX_WORKERS; ++i) {
-        if (res[i][0] == -1) {
-            continue;
-        }
-        fprintf(stdout, "| %9d | %10d |", i, res[i][0]);
-        if (res[i][1] == -1) {
-            fprintf(stdout, " %7s |\n", "Idle");
-        } else {
-            fprintf(stdout, " %7d |\n", res[i][1]);
-        }
-    }
-    fprintf(stdout, "+-----------+------------+---------+\n");
-}
-
 int parse(const char *s) {
     while (*s == ' ' || *s == '\t') s++;
     if (*s == '\n') {
@@ -101,6 +71,36 @@ int parse_with_arg(const char *s, int *x_out) {
     }
     *x_out = x;
     return 0;
+}
+
+void show_pstree(pid_t p) {
+    int ret;
+    char cmd[CHUNK_MSG];
+    snprintf(cmd, sizeof(cmd), "echo; pstree -a -G -c -p %ld; echo", (long)p);
+    cmd[sizeof(cmd)-1] = '\0';
+    ret = system(cmd);
+    if (ret < 0) {
+        perror("system");
+        ext(104);
+    }
+}
+
+void print_table(const int res[MAX_WORKERS][2]) {
+    fprintf(stdout, "+-----------+------------+--------+\n");
+    fprintf(stdout, "| WORKER ID | WORKER PID | STATUS |\n");
+    fprintf(stdout, "+-----------+------------+--------+\n");
+    for (int i = 0; i < MAX_WORKERS; ++i) {
+        if (res[i][0] == -1) {
+            continue;
+        }
+        fprintf(stdout, "| %9d | %10d |", i, res[i][0]);
+        if (res[i][1] == -1) {
+            fprintf(stdout, " %6s |\n", "Idle ");
+        } else {
+            fprintf(stdout, " %6d |\n", res[i][1]);
+        }
+    }
+    fprintf(stdout, "+-----------+------------+--------+\n");
 }
 
 void help(void) {
