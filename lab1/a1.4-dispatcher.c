@@ -225,6 +225,29 @@ int init_chunks(off_t end) {
     return (end-1)/res[1]+1;
 }
 
+const char *decode(const char *s) {
+    static char c2c[2];
+    if (s[0] == '\\') {
+        switch(s[1]) {
+            case 'n':
+                c2c[0] = '\n';
+                break;
+            case 't':
+                c2c[0] = '\t';
+                break;
+            case 'b':
+                c2c[0] = '\b';
+                break;
+            default:
+                c2c[0] = '\\';
+        }
+    } else {
+        c2c[0] = s[0];
+    }
+    c2c[1] = '\0';
+    return c2c;
+}
+
 int main(int argc, char *argv[]) {
     if (argc != 5) {
         fprintf(stdout, "error: Bad dispatcher initialization\n");
@@ -284,10 +307,11 @@ int main(int argc, char *argv[]) {
     for (int i = 0; i < MAX_WORKERS; ++i) {
         workers[i].pid = -1;
     }
+    const char *c2c = decode(argv[2]);
     while (res[0] < res[1]) {
         reap_workers(workers, chunks);
         read_result(workers, chunks);
-        dispatch(fdr, argv[2], workers, chunks);
+        dispatch(fdr, c2c, workers, chunks);
         assign_work(workers, chunks, chunk_size);
         usleep(LOOP_WAIT);
     }

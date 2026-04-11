@@ -211,9 +211,32 @@ void read_input(const char *input, const char *c2c) {
     }
 }
 
+const char *fix_char(const char *s) {
+    static char c2c[3];
+    if (s[0] == '\\') {
+        if (s[1] == '0') {
+            return NULL;
+        }
+        if (s[1] == 'n' || s[1] == 't' || s[1] == 'b') {
+            c2c[0] = s[0];
+            c2c[1] = s[1];
+            c2c[2] = '\0';
+            return c2c;
+        }
+    }
+    c2c[0] = s[0];
+    c2c[1] = '\0';
+    return c2c;
+}
+
 int main(int argc, char *argv[]) {
     if (argc != 3) {
         fprintf(stderr, "Usage: %s <input-file> <char>\n", argv[0]);
+        return 1;
+    }
+    const char *c2c = fix_char(argv[2]);
+    if (c2c == NULL) {
+        fprintf(stderr, "Error: forbidden character: '%s'\n", argv[2]);
         return 1;
     }
     if ((pipe(pipefd1)) < 0) {
@@ -236,11 +259,11 @@ int main(int argc, char *argv[]) {
         perror("fork");
         exit(1);
     } else if (p == 0) {
-        create_dispatcher(argv[1], argv[2]);
+        create_dispatcher(argv[1], c2c);
     }
     close(pipefd1[0]);
     close(pipefd2[1]);
     for (;;) {
-        read_input(argv[1], argv[2]);
+        read_input(argv[1], c2c);
     }
 }
