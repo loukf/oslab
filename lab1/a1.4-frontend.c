@@ -86,21 +86,21 @@ void show_pstree(pid_t p) {
 }
 
 void print_table(const int res[MAX_WORKERS][2]) {
-    fprintf(stdout, "+-----------+------------+--------+\n");
-    fprintf(stdout, "| WORKER ID | WORKER PID | STATUS |\n");
-    fprintf(stdout, "+-----------+------------+--------+\n");
+    fprintf(stdout, "+-----------+------------+-------+\n");
+    fprintf(stdout, "| WORKER ID | WORKER PID | CHUNK |\n");
+    fprintf(stdout, "+-----------+------------+-------+\n");
     for (int i = 0; i < MAX_WORKERS; ++i) {
         if (res[i][0] == -1) {
             continue;
         }
         fprintf(stdout, "| %9d | %10d |", i, res[i][0]);
         if (res[i][1] == -1) {
-            fprintf(stdout, " %6s |\n", "Idle ");
+            fprintf(stdout, " %5s |\n", "IDLE");
         } else {
-            fprintf(stdout, " %6d |\n", res[i][1]);
+            fprintf(stdout, " %5d |\n", res[i][1]);
         }
     }
-    fprintf(stdout, "+-----------+------------+--------+\n");
+    fprintf(stdout, "+-----------+------------+-------+\n");
 }
 
 void help(void) {
