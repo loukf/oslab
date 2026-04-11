@@ -14,7 +14,8 @@ typedef struct {
     int pipefd2[2];
 } Worker;
 
-int current_workers = 0;
+Worker workers[MAX_WORKERS];
+int current_workers;
 int res[3] = {0, 0, 0};
 
 int front_pipefd1[2];
@@ -22,6 +23,18 @@ int front_pipefd2[2];
 
 void sig_info_handler(int signum) {
     if (write(front_pipefd2[1], &current_workers, sizeof(int)) != sizeof(int)) {
+        perror("pipe_dispatcher");
+        exit(1);
+    }
+    if (current_workers == 0) {
+        return;
+    }
+    int buff[MAX_WORKERS][2];
+    for (int i = 0; i < MAX_WORKERS; ++i) {
+        buff[i][0] = workers[i].pid;
+        buff[i][1] = workers[i].status;
+    }
+    if (write(front_pipefd2[1], &buff, sizeof(buff)) != sizeof(buff)) {
         perror("pipe_dispatcher");
         exit(1);
     }
@@ -112,7 +125,7 @@ void kill_worker(int *chunks, Worker *w) {
     cleanup_worker(chunks, w);
 }
 
-void reap_workers(int *chunks, Worker *workers) {
+void reap_workers(int *chunks) {
     int status;
     for (int i = 0; i < MAX_WORKERS; i++) {
         if (workers[i].pid == -1) {
@@ -130,7 +143,7 @@ void reap_workers(int *chunks, Worker *workers) {
     }
 }
 
-void read_result(int *chunks, Worker *workers) {
+void read_result(int *chunks) {
     for (int i = 0; i < MAX_WORKERS; ++i) {
         if (workers[i].pid == -1 || workers[i].status == -1)  {
             continue;
@@ -150,7 +163,7 @@ void read_result(int *chunks, Worker *workers) {
     }
 }
 
-void dispatch(const int fdr, const char *c2c, int *chunks, Worker *workers) {
+void dispatch(const int fdr, const char *c2c, int *chunks) {
     int P;
     if (read(front_pipefd1[0], &P, sizeof(int)) != sizeof(int)) {
         if (errno != EINTR && errno != EWOULDBLOCK) {
@@ -174,7 +187,7 @@ void dispatch(const int fdr, const char *c2c, int *chunks, Worker *workers) {
     } else if (P < 0) {
         int to_kill = -P;
         for (int i = 0; i < MAX_WORKERS && to_kill > 0; ++i) {
-            if (workers[i].pid == -1 || workers[i].status == -1) {
+            if (workers[i].pid == -1 || workers[i].status != -1) {
                 continue;
             }
             kill_worker(chunks, &workers[i]);
@@ -193,7 +206,7 @@ void dispatch(const int fdr, const char *c2c, int *chunks, Worker *workers) {
     }
 }
 
-void assign_work(int *chunks, const int chunk_size, Worker *workers) {
+void assign_work(int *chunks, const int chunk_size) {
     int checked = 0;
     for (int i = 0; i < res[1]; ++i) {
         if (chunks[i] != 0) {
@@ -315,15 +328,14 @@ int main(int argc, char *argv[]) {
     for (int i = 0; i < res[1]; ++i) {
         chunks[i] = 0;
     }
-    Worker workers[MAX_WORKERS];
     for (int i = 0; i < MAX_WORKERS; ++i) {
         workers[i].pid = -1;
     }
     while (res[0] < res[1]) {
-        reap_workers(chunks, workers);
-        read_result(chunks, workers);
-        dispatch(fdr, c2c, chunks, workers);
-        assign_work(chunks, chunk_size, workers);
+        reap_workers(chunks);
+        read_result(chunks);
+        dispatch(fdr, c2c, chunks);
+        assign_work(chunks, chunk_size);
         usleep(LOOP_WAIT);
     }
     close(fdr);

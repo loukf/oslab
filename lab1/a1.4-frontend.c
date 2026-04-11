@@ -48,6 +48,24 @@ void show_pstree(pid_t p) {
     }
 }
 
+void print_table(const int res[MAX_WORKERS][2]) {
+    fprintf(stdout, "+-----------+------------+---------+\n");
+    fprintf(stdout, "| WORKER ID | WORKER PID | READING |\n");
+    fprintf(stdout, "+-----------+------------+---------+\n");
+    for (int i = 0; i < MAX_WORKERS; ++i) {
+        if (res[i][0] == -1) {
+            continue;
+        }
+        fprintf(stdout, "| %9d | %10d |", i, res[i][0]);
+        if (res[i][1] == -1) {
+            fprintf(stdout, " %7s |\n", "Idle");
+        } else {
+            fprintf(stdout, " %7d |\n", res[i][1]);
+        }
+    }
+    fprintf(stdout, "+-----------+------------+---------+\n");
+}
+
 int parse(const char *s) {
     while (*s == ' ' || *s == '\t') s++;
     if (*s == '\n') {
@@ -114,6 +132,15 @@ void info(void) {
         ext(1);
     }
     fprintf(stdout, "Concurrent workers: %d\n", x);
+    if (x == 0) {
+        return;
+    }
+    int res[MAX_WORKERS][2];
+    if (read(pipefd2[0], &res, sizeof(res)) != sizeof(res)) {
+        perror("pipe_frontend");
+        ext(1);
+    }
+    print_table(res);
 }
 
 void prog(const char *input, const char *c2c) {
