@@ -114,19 +114,6 @@ void info(void) {
         ext(1);
     }
     fprintf(stdout, "Concurrent workers: %d\n", x);
-    for (int i = 0; i < x; ++i) {
-        int res[2];
-        if (read(pipefd2[0], &res, sizeof(res)) != sizeof(res)) {
-            perror("pipe_frontend");
-            ext(1);
-        }
-        fprintf(stdout, "Worker %3d [PID %d]: ", i, res[0]);
-        if (res[1] == -1) {
-            fprintf(stdout, "Idle\n");
-        } else {
-            fprintf(stdout, "Processing chunk %d\n", res[1]);
-        }
-    }
 }
 
 void prog(const char *input, const char *c2c) {
