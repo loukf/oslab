@@ -8,4 +8,4 @@
 
 #define LOOP_WAIT (1*1000)
 
-#define WORK_WAIT (1*1000*1000)
+#define WORK_WAIT (5*1000*1000)

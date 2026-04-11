@@ -212,6 +212,9 @@ void read_input(const char *input, const char *c2c) {
 }
 
 const char *fix_char(const char *s) {
+    if (!s[0]) {
+        return NULL;
+    }
     static char c2c[3];
     if (s[0] == '\\') {
         if (s[1] == '0') {

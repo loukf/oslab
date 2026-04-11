@@ -23,7 +23,7 @@ void work(const int fdr, const char c2c) {
     ssize_t rcnt;
     rcnt = pread(fdr, buff, sizeof(buff)-1, offset);
     if (rcnt == 0) { /* end of file */
-        return;
+        // Do nothing, program should finish
     }
     if (rcnt < 0) { /* error */
         perror("pipe_worker");

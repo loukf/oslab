@@ -220,8 +220,8 @@ void read_result(Worker *workers, int *chunks) {
     }
 }
 
-int init_chunks(off_t end) {
-    res[1] = end < MAX_CHUNKS ? end : MAX_CHUNKS;
+int calc_chunk_size(off_t end) {
+    res[1] = end/4 < MAX_CHUNKS ? end/4 : MAX_CHUNKS;
     return (end-1)/res[1]+1;
 }
 
@@ -289,7 +289,7 @@ int main(int argc, char *argv[]) {
         perror("fstat");
         exit(1);
     }
-    int chunk_size = init_chunks(st.st_size);
+    int chunk_size = calc_chunk_size(st.st_size);
     int flags = fcntl(front_pipefd1[0], F_GETFL, 0);
     if (flags == -1) {
         perror("fcntl GETFL");
