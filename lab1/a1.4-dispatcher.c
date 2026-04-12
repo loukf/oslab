@@ -340,5 +340,5 @@ int main(int argc, char *argv[]) {
     }
     close(fdr);
     fprintf(stdout, "Program finished!\n");
-    fprintf(stdout, "The character '%s' appears %d times in file %s.\n", argv[2], res[2], argv[1]);
+    fprintf(stdout, "The character '%s' appears %d time%s in file %s.\n", argv[2], res[2], (res[2] == 1) ? "" : "s", argv[1]);
 }

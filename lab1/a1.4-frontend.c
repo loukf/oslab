@@ -85,22 +85,22 @@ void show_pstree(pid_t p) {
     }
 }
 
-void print_table(const int res[MAX_WORKERS][2]) {
-    fprintf(stdout, "+-----------+------------+-------+\n");
-    fprintf(stdout, "| WORKER ID | WORKER PID | CHUNK |\n");
-    fprintf(stdout, "+-----------+------------+-------+\n");
+void print_worktable(const int res[MAX_WORKERS][2]) {
+    fprintf(stdout, "┌───────────┬────────────┬───────┐\n");
+    fprintf(stdout, "│ WORKER ID │ WORKER PID │ CHUNK │\n");
+    fprintf(stdout, "├───────────┼────────────┼───────┤\n");
     for (int i = 0; i < MAX_WORKERS; ++i) {
         if (res[i][0] == -1) {
             continue;
         }
-        fprintf(stdout, "| %9d | %10d |", i, res[i][0]);
+        fprintf(stdout, "│ %9d │ %10d │", i, res[i][0]);
         if (res[i][1] == -1) {
-            fprintf(stdout, " %5s |\n", "-");
+            fprintf(stdout, " %5s │\n", "-");
         } else {
-            fprintf(stdout, " %5d |\n", res[i][1]);
+            fprintf(stdout, " %5d │\n", res[i][1]);
         }
     }
-    fprintf(stdout, "+-----------+------------+-------+\n");
+    fprintf(stdout, "└───────────┴────────────┴───────┘\n");
 }
 
 void help(void) {
@@ -140,7 +140,7 @@ void info(void) {
         perror("pipe_frontend");
         ext(1);
     }
-    print_table(res);
+    print_worktable(res);
 }
 
 void prog(const char *input, const char *c2c) {
