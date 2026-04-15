@@ -26,7 +26,7 @@ void work(const int fdr, const char c2c) {
         // Do nothing, program should finish
     }
     if (rcnt < 0) { /* error */
-        perror("pipe_worker");
+        perror("read");
         exit(1);
     }
     buff[rcnt] = '\0';
