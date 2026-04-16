@@ -238,7 +238,7 @@ void read_input(const char *input, const char *c2c) {
     }
 }
 
-const char *fix_char(const char *s) {
+const char *trim_char(const char *s) {
     if (!s[0]) {
         return NULL;
     }
@@ -264,7 +264,7 @@ int main(int argc, char *argv[]) {
         fprintf(stderr, "Usage: %s <input-file> <char>\n", argv[0]);
         return 1;
     }
-    const char *c2c = fix_char(argv[2]);
+    const char *c2c = trim_char(argv[2]);
     if (c2c == NULL) {
         fprintf(stderr, "Error: forbidden character: '%s'\n", argv[2]);
         return 1;
