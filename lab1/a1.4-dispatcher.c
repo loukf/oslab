@@ -24,7 +24,7 @@ int front_pipefd2[2];
 void sig_info_handler(int signum) {
     if (write(front_pipefd2[1], &current_workers, sizeof(int)) != sizeof(int)) {
         perror("pipe_dispatcher");
-        exit(1);
+        _exit(1);
     }
     if (current_workers == 0) {
         return;
@@ -36,14 +36,14 @@ void sig_info_handler(int signum) {
     }
     if (write(front_pipefd2[1], &buff, sizeof(buff)) != sizeof(buff)) {
         perror("pipe_dispatcher");
-        exit(1);
+        _exit(1);
     }
 }
 
 void sig_prog_handler(int signum) {
     if (write(front_pipefd2[1], &res, sizeof(res)) != sizeof(res)) {
         perror("pipe_dispatcher");
-        exit(1);
+        _exit(1);
     }
 }
 
