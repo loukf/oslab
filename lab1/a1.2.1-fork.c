@@ -16,7 +16,7 @@ int main(int argc, char *argv[]) {
         print_err("Error: cannot fork process\n");
         _exit(1);
     } else if (p == 0) {
-        sprintf(msg, "Child PID=%d, Parent PID=%d.\n", getpid(), getppid());
+        sprintf(msg, "Hello from child PID=%d, Parent PID=%d.\n", getpid(), getppid());
         write(1, msg, strlen(msg));
     } else {
         wait(NULL);

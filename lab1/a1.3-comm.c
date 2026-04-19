@@ -32,8 +32,10 @@ int main(int argc, char *argv[]) {
         return 1;
     }
     struct sigaction sa;
+    sigset_t sigset;
     sa.sa_handler = sighandler;
     sa.sa_flags = SA_RESTART;
+    sa.sa_mask = sigset;
     if (sigaction(SIGINT, &sa, NULL) < 0) {
         print_err("error: sigaction failed\n");
         _exit(1);
@@ -61,7 +63,6 @@ int main(int argc, char *argv[]) {
     }
     off_t end = st.st_size;
     off_t chunk_size = (end-1)/P+1;
-    int res = 0;
     for (int i = 0; i < P; ++i) {
         active++;
         pid_t p = fork();
@@ -96,9 +97,14 @@ int main(int argc, char *argv[]) {
             _exit(0);
         }
     }
-    int count;
+    close(fdr);
     for (int i = 0; i < P; ++i) {
         close(pipefd[i][1]);
+        wait(NULL);
+    }
+    int res = 0;
+    for (int i = 0; i < P; ++i) {
+        int count;
         if (read(pipefd[i][0], &count, sizeof(int)) != sizeof(int)) {
             print_err("error: cannot read from pipe\n");
             close(pipefd[i][0]);
@@ -107,10 +113,6 @@ int main(int argc, char *argv[]) {
         close(pipefd[i][0]);
         res += count;
         active--;
-    }
-    close(fdr);
-    for (int i = 0; i < P; ++i) {
-        wait(NULL);
     }
     fdw = open(argv[2], O_CREAT | O_WRONLY | O_TRUNC, 0644);
     if (fdw < 0) {

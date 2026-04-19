@@ -29,11 +29,15 @@ int main(int argc, char *argv[]) {
         print_err("error: cannot create pipe\n");
         _exit(1);
     }
+    int x;
     pid_t p = fork();
     if (p < 0) {
         print_err("error: cannot fork process\n");
         _exit(1);
     } else if (p == 0) {
+        sprintf(msg, "Hello from child with PID=%d, Parent PID=%d.\n", getpid(), getppid());
+        write(1, msg, strlen(msg));
+        x = 42;
         close(pipefd[0]);
         int child_count = 0;
         char buff[1024];
@@ -52,6 +56,7 @@ int main(int argc, char *argv[]) {
                 }
             }
         }
+        close(fdr);
         if (write(pipefd[1], &child_count, sizeof(int)) != sizeof(int)) {
             print_err("error: cannot write to pipe\n");
             close(pipefd[1]);
@@ -59,7 +64,12 @@ int main(int argc, char *argv[]) {
         }
         close(pipefd[1]);
     } else {
+        close(fdr);
         close(pipefd[1]);
+        wait(NULL);
+        sprintf(msg, "Child with PID=%d finished.\n", p);
+        write(1, msg, strlen(msg));
+        x = 67;
         int count;
         if (read(pipefd[0], &count, sizeof(int)) != sizeof(int)) {
             print_err("error: cannot read from pipe\n");
@@ -67,8 +77,6 @@ int main(int argc, char *argv[]) {
             _exit(1);
         }
         close(pipefd[0]);
-        close(fdr);
-        wait(NULL);
         fdw = open(argv[2], O_CREAT | O_WRONLY | O_TRUNC, 0644);
         if (fdw < 0) {
             print_err("error: problem opening file to write\n");
@@ -78,5 +86,7 @@ int main(int argc, char *argv[]) {
         write(fdw, msg, strlen(msg));
         close(fdw);
     }
+    sprintf(msg, "%d\n", x);
+    write(1, msg, strlen(msg));
     return 0;
 }
