@@ -186,14 +186,14 @@ void dispatch(const int fdr, const char *c2c, int *chunks) {
         }
     } else if (P < 0) {
         int to_kill = -P;
-        for (int i = 0; i < MAX_WORKERS && to_kill > 0; ++i) {
+        for (int i = MAX_WORKERS-1; i >= 0 && to_kill > 0; --i) {
             if (workers[i].pid == -1 || workers[i].status != -1) {
                 continue;
             }
             kill_worker(chunks, &workers[i]);
             to_kill--;
         }
-        for (int i = 0; i < MAX_WORKERS && to_kill > 0; ++i) {
+        for (int i = MAX_WORKERS-1; i >= 0 && to_kill > 0; --i) {
             if (workers[i].pid == -1) {
                 continue;
             }
