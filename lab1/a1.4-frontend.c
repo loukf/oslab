@@ -278,8 +278,10 @@ int main(int argc, char *argv[]) {
         exit(1);
     }
     struct sigaction sa;
+    sigset_t sigset;
     sa.sa_handler = sigchld_handler;
     sa.sa_flags = SA_RESTART;
+    sa.sa_mask = sigset;
     if (sigaction(SIGCHLD, &sa, NULL) < 0) {
         perror("sigaction");
         exit(1);

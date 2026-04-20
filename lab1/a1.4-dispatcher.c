@@ -284,8 +284,10 @@ int main(int argc, char *argv[]) {
         return 1;
     }
     struct sigaction sa_info;
+    sigset_t sigset;
     sa_info.sa_handler = sig_info_handler;
     sa_info.sa_flags = SA_RESTART;
+    sa_info.sa_mask = sigset;
     if (sigaction(SIGUSR1, &sa_info, NULL) < 0) {
         perror("sigaction");
         exit(1);
@@ -293,6 +295,7 @@ int main(int argc, char *argv[]) {
     struct sigaction sa_prog;
     sa_prog.sa_handler = sig_prog_handler;
     sa_prog.sa_flags = SA_RESTART;
+    sa_prog.sa_mask = sigset;
     if (sigaction(SIGUSR2, &sa_prog, NULL) < 0) {
         perror("sigaction");
         exit(1);
