@@ -30,14 +30,14 @@ void work(const int fdr, const char c2c) {
         exit(1);
     }
     buff[rcnt] = '\0';
-    int res[2] = { at[0], 0 };
+    int count = 0;
     for (int i = 0; i < rcnt; ++i) {
         if (buff[i] == c2c) {
-            res[1]++;
+            count++;
         }
     }
     usleep(WORK_WAIT);
-    if (write(pipefd2[1], &res, sizeof(res)) != sizeof(res)) {
+    if (write(pipefd2[1], &count, sizeof(int)) != sizeof(int)) {
         if (errno != EPIPE) {
             perror("pipe_worker");
             exit(1);

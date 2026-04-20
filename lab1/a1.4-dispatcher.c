@@ -47,7 +47,7 @@ void sig_prog_handler(int signum) {
     }
 }
 
-pid_t exec_worker(const int fdr, const char *c2c, Worker *w) {
+void exec_worker(const int fdr, const char *c2c, Worker *w) {
     if ((pipe(w->pipefd1)) < 0) {
         perror("pipe_dispatcher");
         exit(1);
@@ -88,7 +88,6 @@ pid_t exec_worker(const int fdr, const char *c2c, Worker *w) {
     w->pid = p;
     w->status = -1;
     current_workers++;
-    return p;
 }
 
 void cleanup_worker(int *chunks, Worker *w) {
@@ -148,17 +147,17 @@ void read_result(int *chunks) {
         if (workers[i].pid == -1 || workers[i].status == -1)  {
             continue;
         }
-        int at[2];
-        if (read(workers[i].pipefd2[0], &at, sizeof(at)) != sizeof(at)) {
+        int x;
+        if (read(workers[i].pipefd2[0], &x, sizeof(int)) != sizeof(int)) {
             if (errno != EINTR && errno != EWOULDBLOCK) {
                 perror("pipe_dispatcher");
                 exit(1);
             }
             continue;
         }
+        chunks[workers[i].status] = 2;
         workers[i].status = -1;
-        chunks[at[0]] = 2;
-        res[2] += at[1];
+        res[2] += x;
         res[0]++;
     }
 }
@@ -178,7 +177,7 @@ void dispatch(const int fdr, const char *c2c, int *chunks) {
             if (workers[i].pid > 0) {
                 continue;
             }
-            exec_worker(fdr, c2c, &workers[i]);
+           exec_worker(fdr, c2c, &workers[i]);
             to_spawn--;
         }
         if (to_spawn > 0) {
@@ -222,7 +221,6 @@ void assign_work(int *chunks, const int chunk_size) {
                 perror("pipe_dispatcher");
                 exit(1);
             }
-            cleanup_worker(chunks, &workers[checked]);
             checked++;
             i--;
             continue;
