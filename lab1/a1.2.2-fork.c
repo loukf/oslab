@@ -11,7 +11,7 @@ void print_err(const char *s) {
 }
 
 int main(int argc, char *argv[]) {
-    int x;
+    int x=67;
     pid_t p = fork();
     if (p < 0) {
         print_err("error: cannot fork process\n");
@@ -24,7 +24,6 @@ int main(int argc, char *argv[]) {
         wait(NULL);
         sprintf(msg, "Child with PID=%d finished.\n", p);
         write(1, msg, strlen(msg));
-        x = 67;
     }
     sprintf(msg, "%d\n", x);
     write(1, msg, strlen(msg));
