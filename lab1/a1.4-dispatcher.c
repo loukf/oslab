@@ -61,7 +61,7 @@ void send_info(const Worker *workers) {
 
 void send_prog(const int *res) {
     sig_prog = 0;
-    if (write(front_pipefd2[1], &res, sizeof(res)) != sizeof(res)) {
+    if (write(front_pipefd2[1], res, 3*sizeof(int)) != 3*sizeof(int)) {
         perror("pipe_dispatcher");
         _exit(1);
     }
@@ -132,14 +132,6 @@ void kill_worker(int *chunks, Worker *w) {
             exit(1);
         }
     }
-    int status;
-    if (waitpid(w->pid, &status, 0) < 0) {
-        if (errno != ECHILD) {
-            perror("waitpid");
-            exit(1);
-        }
-    }
-    cleanup_worker(chunks, w);
 }
 
 void reap_workers(int *chunks, Worker *workers) {
