@@ -131,8 +131,8 @@ void info(void) {
         perror("pipe_frontend");
         ext(1);
     }
-    fprintf(stdout, "Concurrent workers: %d\n", x);
     if (x == 0) {
+        fprintf(stdout, "Concurrent workers: %d\n", x);
         return;
     }
     int res[MAX_WORKERS][2];
@@ -141,6 +141,7 @@ void info(void) {
         ext(1);
     }
     print_worktable(res);
+    fprintf(stdout, "Concurrent workers: %d\n", x);
 }
 
 void prog(const char *input, const char *c2c) {
