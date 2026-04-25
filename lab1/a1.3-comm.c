@@ -31,8 +31,9 @@ int main(int argc, char *argv[]) {
         write(2, msg, strlen(msg));
         return 1;
     }
-    struct sigaction sa;
     sigset_t sigset;
+    sigemptyset(&sigset);
+    struct sigaction sa;
     sa.sa_handler = sighandler;
     sa.sa_flags = SA_RESTART;
     sa.sa_mask = sigset;

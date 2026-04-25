@@ -7,20 +7,27 @@
 #include <stdlib.h>
 #include "defines.h"
 
-typedef struct {
+struct worker {
     int pid;
     int status;
     int pipefd1[2];
     int pipefd2[2];
-} Worker;
+};
 
-typedef struct {
-    int size;
-    int total;
-} Chunk_Info;
+struct chunk {
+    int occur;
+    int status;
+};
 
-volatile sig_atomic_t sig_info = 0;
-volatile sig_atomic_t sig_prog = 0;
+struct program_state {
+    int chunk_size;
+    int checked_chunks;
+    int total_chunks;
+    int total_occur;
+};
+
+int sig_info = 0;
+int sig_prog = 0;
 
 int front_pipefd1[2];
 int front_pipefd2[2];
@@ -33,8 +40,7 @@ void sig_prog_handler(int signum) {
     sig_prog = 1;
 }
 
-void send_info(const Worker *workers) {
-    sig_info = 0;
+void send_info(const struct worker *workers) {
     int current_workers = 0;
     for (int i = 0; i < MAX_WORKERS; ++i) {
         if (workers[i].pid != -1) {
@@ -59,15 +65,15 @@ void send_info(const Worker *workers) {
     }
 }
 
-void send_prog(const int *res) {
-    sig_prog = 0;
-    if (write(front_pipefd2[1], res, 3*sizeof(int)) != 3*sizeof(int)) {
+void send_prog(const struct program_state *state) {
+    int res[3] = { state->checked_chunks, state->total_chunks, state->total_occur };
+    if (write(front_pipefd2[1], &res, sizeof(res)) != sizeof(res)) {
         perror("pipe_dispatcher");
         _exit(1);
     }
 }
 
-void exec_worker(const int fdr, const char *c2c, Worker *w) {
+void spawn_worker(const int fdr, const char *c2c, struct worker *w) {
     if ((pipe(w->pipefd1)) < 0) {
         perror("pipe_dispatcher");
         exit(1);
@@ -109,20 +115,7 @@ void exec_worker(const int fdr, const char *c2c, Worker *w) {
     w->status = -1;
 }
 
-void cleanup_worker(int *chunks, Worker *w) {
-    if (w->pid == -1) {
-        return;
-    }
-    close(w->pipefd1[1]);
-    close(w->pipefd2[0]);
-    if (w->status != -1) {
-        chunks[w->status] = 0;
-    }
-    w->pid = -1;
-    w->status = -1;
-}
-
-void kill_worker(int *chunks, Worker *w) {
+void kill_worker(struct worker *w) {
     if (w->pid == -1) {
         return ;
     }
@@ -134,12 +127,12 @@ void kill_worker(int *chunks, Worker *w) {
     }
 }
 
-void reap_workers(int *chunks, Worker *workers) {
-    int status;
+void cleanup_workers(struct chunk *chunks, struct worker *workers) {
     for (int i = 0; i < MAX_WORKERS; i++) {
         if (workers[i].pid == -1) {
             continue;
         }
+        int status;
         pid_t pid = waitpid(workers[i].pid, &status, WNOHANG);
         if (pid == 0) {
             continue;
@@ -148,11 +141,17 @@ void reap_workers(int *chunks, Worker *workers) {
             perror("waitpid");
             exit(1);
         }
-        cleanup_worker(chunks, &workers[i]);
+        close(workers[i].pipefd1[1]);
+        close(workers[i].pipefd2[0]);
+        if (workers[i].status != -1) {
+            chunks[workers[i].status].status = 0;
+        }
+        workers[i].pid = -1;
+        workers[i].status = -1;
     }
 }
 
-void read_result(int *chunks, int *res, Worker *workers) {
+void read_result(struct chunk *chunks, struct worker *workers, struct program_state *state) {
     for (int i = 0; i < MAX_WORKERS; ++i) {
         if (workers[i].pid == -1 || workers[i].status == -1)  {
             continue;
@@ -165,14 +164,42 @@ void read_result(int *chunks, int *res, Worker *workers) {
             }
             continue;
         }
-        chunks[workers[i].status] = 2;
+        int j = workers[i].status;
+        chunks[j].occur = x;
+        chunks[j].status = 2;
         workers[i].status = -1;
-        res[2] += x;
-        res[0]++;
+        state->total_occur += x;
+        state->checked_chunks++;
     }
 }
 
-void dispatch(const int fdr, const char *c2c, int *chunks, Worker *workers) {
+void assign_work(struct chunk *chunks, struct worker *workers, const struct program_state *state ) {
+    int j = 0;
+    for (int i = 0; i < state->total_chunks; ++i) {
+        if (chunks[i].status != 0) {
+            continue;
+        }
+        while (j < MAX_WORKERS && (workers[j].pid == -1 || workers[j].status != -1)) j++;
+        if (j >= MAX_WORKERS) {
+            break;
+        }
+        int at[2] = {i, state->chunk_size};
+        if (write(workers[j].pipefd1[1], &at, sizeof(at)) != sizeof(at)) {
+            if (errno != EPIPE) {
+                perror("pipe_dispatcher");
+                exit(1);
+            }
+            j++;
+            i--;
+            continue;
+        }
+        workers[j].status = i;
+        chunks[i].status = 1;
+        j++;
+    }
+}
+
+void dispatch(const int fdr, const char *c2c, struct worker *workers) {
     int P;
     if (read(front_pipefd1[0], &P, sizeof(int)) != sizeof(int)) {
         if (errno != EINTR && errno != EWOULDBLOCK) {
@@ -187,7 +214,7 @@ void dispatch(const int fdr, const char *c2c, int *chunks, Worker *workers) {
             if (workers[i].pid > 0) {
                 continue;
             }
-           exec_worker(fdr, c2c, &workers[i]);
+            spawn_worker(fdr, c2c, &workers[i]);
             to_spawn--;
         }
         if (to_spawn > 0) {
@@ -196,17 +223,10 @@ void dispatch(const int fdr, const char *c2c, int *chunks, Worker *workers) {
     } else if (P < 0) {
         int to_kill = -P;
         for (int i = MAX_WORKERS-1; i >= 0 && to_kill > 0; --i) {
-            if (workers[i].pid == -1 || workers[i].status != -1) {
-                continue;
-            }
-            kill_worker(chunks, &workers[i]);
-            to_kill--;
-        }
-        for (int i = MAX_WORKERS-1; i >= 0 && to_kill > 0; --i) {
             if (workers[i].pid == -1) {
                 continue;
             }
-            kill_worker(chunks, &workers[i]);
+            kill_worker(&workers[i]);
             to_kill--;
         }
         if (to_kill > 0) {
@@ -215,41 +235,17 @@ void dispatch(const int fdr, const char *c2c, int *chunks, Worker *workers) {
     }
 }
 
-void assign_work(int *chunks, const Chunk_Info chunk_info , Worker *workers) {
-    int checked = 0;
-    for (int i = 0; i < chunk_info.total; ++i) {
-        if (chunks[i] != 0) {
-            continue;
-        }
-        while (checked < MAX_WORKERS && (workers[checked].pid == -1 || workers[checked].status != -1)) checked++;
-        if (checked >= MAX_WORKERS) {
-            break;
-        }
-        int at[2] = {i, chunk_info.size};
-        if (write(workers[checked].pipefd1[1], &at, sizeof(at)) != sizeof(at)) {
-            if (errno != EPIPE) {
-                perror("pipe_dispatcher");
-                exit(1);
-            }
-            checked++;
-            i--;
-            continue;
-        }
-        workers[checked].status = i;
-        chunks[i] = 1;
-        checked++;
-    }
-}
-
-const Chunk_Info compute_chunks(const off_t end) {
-    Chunk_Info info;
+struct program_state init_state(const off_t end) {
+    struct program_state state;
+    state.checked_chunks = 0;
+    state.total_occur = 0;
     if (end < 10*CHUNK_BIG) {
-        info.size = CHUNK_SMALL;
+        state.chunk_size = CHUNK_SMALL;
     } else {
-        info.size = CHUNK_BIG;
+        state.chunk_size = CHUNK_BIG;
     }
-    info.total = (end-1) / info.size + 1;
-    return info;
+    state.total_chunks = (end-1) / state.chunk_size + 1;
+    return state;
 }
 
 const char *decode(const char *s) {
@@ -291,8 +287,9 @@ int main(int argc, char *argv[]) {
         fprintf(stderr, "Error: Invalid pipe FD: %s\n", argv[4]);
         return 1;
     }
-    struct sigaction sa_info;
     sigset_t sigset;
+    sigemptyset(&sigset);
+    struct sigaction sa_info;
     sa_info.sa_handler = sig_info_handler;
     sa_info.sa_flags = SA_RESTART;
     sa_info.sa_mask = sigset;
@@ -320,7 +317,7 @@ int main(int argc, char *argv[]) {
     int fdr;
     fdr = open(argv[1], O_RDONLY);
     if (fdr < 0) {
-        perror("read");
+        perror("open");
         exit(1);
     }
     struct stat st;
@@ -334,26 +331,31 @@ int main(int argc, char *argv[]) {
         return 1;
     }
     const char *c2c = decode(argv[2]);
-    const Chunk_Info chunk_info = compute_chunks(st.st_size);
-    int chunks[chunk_info.total];
-    for (int i = 0; i < chunk_info.total; ++i) {
-        chunks[i] = 0;
+    struct program_state state = init_state(st.st_size);
+    struct chunk chunks[state.total_chunks];
+    for (int i = 0; i < state.total_chunks; ++i) {
+        chunks[i].status = 0;
     }
-    Worker workers[MAX_WORKERS];
+    struct worker workers[MAX_WORKERS];
     for (int i = 0; i < MAX_WORKERS; ++i) {
         workers[i].pid = -1;
     }
-    int res[3] = {0, chunk_info.total, 0};
-    while (res[0] < res[1]) {
-        if (sig_info) { send_info(workers); }
-        if (sig_prog) { send_prog(res); }
-        reap_workers(chunks, workers);
-        read_result(chunks, res, workers);
-        dispatch(fdr, c2c, chunks, workers);
-        assign_work(chunks, chunk_info, workers);
+    while (state.checked_chunks < state.total_chunks) {
+        if (sig_info) {
+            send_info(workers);
+            sig_info = 0;
+        }
+        if (sig_prog) {
+            send_prog(&state);
+            sig_prog = 0;
+        }
+        cleanup_workers(chunks, workers);
+        read_result(chunks, workers, &state);
+        assign_work(chunks, workers, &state);
+        dispatch(fdr, c2c, workers);
         usleep(LOOP_WAIT);
     }
     close(fdr);
     fprintf(stdout, "Program finished!\n");
-    fprintf(stdout, "The character '%s' appears %d time%s in file %s.\n", argv[2], res[2], (res[2] == 1) ? "" : "s", argv[1]);
+    fprintf(stdout, "The character '%s' appears %d time%s in %s.\n", argv[2], state.total_occur, (state.total_occur == 1) ? "" : "s", argv[1]);
 }

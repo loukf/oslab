@@ -105,7 +105,7 @@ void print_worker_list(const int res[MAX_WORKERS][2]) {
         }
     }
     fprintf(stdout, "└───────────┴────────────┴───────┘\n");
-    fprintf(stdout, "\nConcurrent workers: %d (%d Busy, %d Idle)\n", busy+idle, busy, idle);
+    fprintf(stdout, "Concurrent workers: %d (%d busy, %d idle)\n", busy+idle, busy, idle);
 }
 
 void help(void) {
@@ -282,8 +282,9 @@ int main(int argc, char *argv[]) {
         perror("pipe_frontend");
         exit(1);
     }
-    struct sigaction sa;
     sigset_t sigset;
+    sigemptyset(&sigset);
+    struct sigaction sa;
     sa.sa_handler = sigchld_handler;
     sa.sa_flags = SA_RESTART;
     sa.sa_mask = sigset;
