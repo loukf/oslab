@@ -85,7 +85,9 @@ void show_pstree(pid_t p) {
     }
 }
 
-void print_worktable(const int res[MAX_WORKERS][2]) {
+void print_worker_list(const int res[MAX_WORKERS][2]) {
+    int idle = 0;
+    int busy = 0;
     fprintf(stdout, "┌───────────┬────────────┬───────┐\n");
     fprintf(stdout, "│ WORKER ID │ WORKER PID │ CHUNK │\n");
     fprintf(stdout, "├───────────┼────────────┼───────┤\n");
@@ -95,12 +97,15 @@ void print_worktable(const int res[MAX_WORKERS][2]) {
         }
         fprintf(stdout, "│ %9d │ %10d │", i, res[i][0]);
         if (res[i][1] == -1) {
+            idle++;
             fprintf(stdout, " %5s │\n", "-");
         } else {
+            busy++;
             fprintf(stdout, " %5d │\n", res[i][1]);
         }
     }
     fprintf(stdout, "└───────────┴────────────┴───────┘\n");
+    fprintf(stdout, "\nConcurrent workers: %d (%d Busy, %d Idle)\n", busy+idle, busy, idle);
 }
 
 void help(void) {
@@ -122,11 +127,11 @@ void add(const int x) {
 }
 
 void info(void) {
-    int x;
     if (kill(p, SIGUSR1) < 0) {
         perror("kill");
         ext(-1);
     }
+    int x;
     if (read(pipefd2[0], &x, sizeof(int)) != sizeof(int)) {
         perror("pipe_frontend");
         ext(1);
@@ -140,8 +145,7 @@ void info(void) {
         perror("pipe_frontend");
         ext(1);
     }
-    print_worktable(res);
-    fprintf(stdout, "Concurrent workers: %d\n", x);
+    print_worker_list(res);
 }
 
 void prog(const char *input, const char *c2c) {
