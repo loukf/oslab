@@ -47,7 +47,7 @@ int main(int argc, char *argv[]) {
             if (rcnt == 0) /* end‐of‐file */
                 break;
             if (rcnt < 0) { /* error */
-                print_err("Eror: problem reading from input file\n");
+                print_err("error: problem reading from input file\n");
                 _exit(1);
             }
             for (int i = 0; i < rcnt; i++) {

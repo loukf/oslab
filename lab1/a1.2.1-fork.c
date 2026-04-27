@@ -13,7 +13,7 @@ void print_err(const char *s) {
 int main(int argc, char *argv[]) {
     pid_t p = fork();
     if (p < 0) {
-        print_err("Error: cannot fork process\n");
+        print_err("error: cannot fork process\n");
         _exit(1);
     } else if (p == 0) {
         sprintf(msg, "Hello from child PID=%d, Parent PID=%d.\n", getpid(), getppid());

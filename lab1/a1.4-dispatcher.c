@@ -273,18 +273,18 @@ const char *decode(const char *s) {
 
 int main(int argc, char *argv[]) {
     if (argc != 5) {
-        fprintf(stdout, "Error: Bad dispatcher initialization\n");
+        fprintf(stdout, "error: Bad dispatcher initialization\n");
         return 1;
     }
     char *endptr;
     front_pipefd1[0] = (int)strtol(argv[3], &endptr, 10);
     if (*endptr != '\0') {
-        fprintf(stderr, "Error: Invalid pipe FD: %s\n", argv[3]);
+        fprintf(stderr, "error: Invalid pipe FD: %s\n", argv[3]);
         return 1;
     }
     front_pipefd2[1] = (int)strtol(argv[4], &endptr, 10);
     if (*endptr != '\0') {
-        fprintf(stderr, "Error: Invalid pipe FD: %s\n", argv[4]);
+        fprintf(stderr, "error: Invalid pipe FD: %s\n", argv[4]);
         return 1;
     }
     sigset_t sigset;
@@ -326,7 +326,7 @@ int main(int argc, char *argv[]) {
         exit(1);
     }
     if (st.st_size == 0) {
-        fprintf(stderr, "Error: Empty file\n");
+        fprintf(stderr, "error: Empty file\n");
         close(fdr);
         return 1;
     }
