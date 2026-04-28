@@ -144,7 +144,7 @@ void cleanup_workers(struct chunk *chunks, struct worker *workers) {
         close(workers[i].pipefd1[1]);
         close(workers[i].pipefd2[0]);
         if (workers[i].status != -1) {
-            chunks[workers[i].status].status = 0;
+            chunks[workers[i].status].status = -1;
         }
         workers[i].pid = -1;
         workers[i].status = -1;
@@ -166,7 +166,7 @@ void read_result(struct chunk *chunks, struct worker *workers, struct program_st
         }
         int j = workers[i].status;
         chunks[j].occur = x;
-        chunks[j].status = 2;
+        chunks[j].status = 1;
         workers[i].status = -1;
         state->total_occur += x;
         state->checked_chunks++;
@@ -176,7 +176,7 @@ void read_result(struct chunk *chunks, struct worker *workers, struct program_st
 void assign_work(struct chunk *chunks, struct worker *workers, const struct program_state *state ) {
     int j = 0;
     for (int i = 0; i < state->total_chunks; ++i) {
-        if (chunks[i].status != 0) {
+        if (chunks[i].status != -1) {
             continue;
         }
         while (j < MAX_WORKERS && (workers[j].pid == -1 || workers[j].status != -1)) j++;
@@ -194,7 +194,7 @@ void assign_work(struct chunk *chunks, struct worker *workers, const struct prog
             continue;
         }
         workers[j].status = i;
-        chunks[i].status = 1;
+        chunks[i].status = 0;
         j++;
     }
 }
@@ -334,7 +334,7 @@ int main(int argc, char *argv[]) {
     struct program_state state = init_state(st.st_size);
     struct chunk chunks[state.total_chunks];
     for (int i = 0; i < state.total_chunks; ++i) {
-        chunks[i].status = 0;
+        chunks[i].status = -1;
     }
     struct worker workers[MAX_WORKERS];
     for (int i = 0; i < MAX_WORKERS; ++i) {
