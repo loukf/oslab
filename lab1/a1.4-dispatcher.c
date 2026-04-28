@@ -357,5 +357,5 @@ int main(int argc, char *argv[]) {
     }
     close(fdr);
     fprintf(stdout, "Program finished!\n");
-    fprintf(stdout, "The character '%s' appears %d time%s in %s.\n", argv[2], state.total_occur, (state.total_occur == 1) ? "" : "s", argv[1]);
+    fprintf(stdout, "The character '%s' appears %d times in %s.\n", argv[2], state.total_occur, argv[1]);
 }
