@@ -1,12 +1,17 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <errno.h>
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include "defines.h"
 
 int pipefd1[2];
 int pipefd2[2];
+
+void sighandler(int signum) {
+    exit(0);
+}
 
 void work(const int fdr, const char c2c) {
     int at[2] = {0, 0};
@@ -66,6 +71,16 @@ int main(int argc, char *argv[]) {
     if (*endptr != '\0') {
         fprintf(stderr, "error: Invalid pipe FD: %s\n", argv[4]);
         return 1;
+    }
+    sigset_t sigset;
+    sigemptyset(&sigset);
+    struct sigaction sa;
+    sa.sa_handler = sighandler;
+    sa.sa_flags = SA_RESTART;
+    sa.sa_mask = sigset;
+    if (sigaction(SIGUSR1, &sa, NULL) < 0) {
+        perror("sigaction");
+        exit(1);
     }
     for (;;) {
         work(fdr, argv[2][0]);

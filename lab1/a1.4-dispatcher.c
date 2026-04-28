@@ -5,6 +5,8 @@
 #include <sys/stat.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
+#include <termios.h>
 #include "defines.h"
 
 struct worker {
@@ -119,7 +121,7 @@ void kill_worker(struct worker *w) {
     if (w->pid == -1) {
         return ;
     }
-    if (kill(w->pid, SIGTERM) < 0) {
+    if (kill(w->pid, SIGUSR1) < 0) {
         if (errno != ESRCH) {
             perror("kill");
             exit(1);
@@ -127,7 +129,13 @@ void kill_worker(struct worker *w) {
     }
 }
 
-void cleanup_workers(struct chunk *chunks, struct worker *workers) {
+void report_dead_worker(const struct worker *w, const int code) {
+    tcflush(STDIN_FILENO, TCIFLUSH);
+    fprintf(stderr, "\a\r\033[K[Dispatcher] worker with PID %d exited abnormally (signal %d: %s)\n> ",
+            w->pid, code, strsignal(code));
+}
+
+void reap_workers(struct chunk *chunks, struct worker *workers) {
     for (int i = 0; i < MAX_WORKERS; i++) {
         if (workers[i].pid == -1) {
             continue;
@@ -141,6 +149,9 @@ void cleanup_workers(struct chunk *chunks, struct worker *workers) {
             perror("waitpid");
             exit(1);
         }
+        if (WIFSIGNALED(status)) {
+            report_dead_worker(&workers[i], WTERMSIG(status));
+        }
         close(workers[i].pipefd1[1]);
         close(workers[i].pipefd2[0]);
         if (workers[i].status != -1) {
@@ -151,7 +162,7 @@ void cleanup_workers(struct chunk *chunks, struct worker *workers) {
     }
 }
 
-void read_result(struct chunk *chunks, struct worker *workers, struct program_state *state) {
+void read_results(struct chunk *chunks, struct worker *workers, struct program_state *state) {
     for (int i = 0; i < MAX_WORKERS; ++i) {
         if (workers[i].pid == -1 || workers[i].status == -1)  {
             continue;
@@ -173,7 +184,7 @@ void read_result(struct chunk *chunks, struct worker *workers, struct program_st
     }
 }
 
-void assign_work(struct chunk *chunks, struct worker *workers, const struct program_state *state ) {
+void assign_tasks(struct chunk *chunks, struct worker *workers, const struct program_state *state) {
     int j = 0;
     for (int i = 0; i < state->total_chunks; ++i) {
         if (chunks[i].status != -1) {
@@ -211,14 +222,14 @@ void dispatch(const int fdr, const char *c2c, struct worker *workers) {
     if (P > 0) {
         int to_spawn = P;
         for (int i = 0; i < MAX_WORKERS && to_spawn > 0; ++i) {
-            if (workers[i].pid > 0) {
+            if (workers[i].pid != -1) {
                 continue;
             }
             spawn_worker(fdr, c2c, &workers[i]);
             to_spawn--;
         }
         if (to_spawn > 0) {
-            fprintf(stderr, "\b\b[Dispatcher] cannot add more workers - already at maximum (%d)\n> ", MAX_WORKERS);
+            fprintf(stderr, "\r\033[K[Dispatcher] cannot add more workers - already at maximum (%d)\n> ", MAX_WORKERS);
         }
     } else if (P < 0) {
         int to_kill = -P;
@@ -230,7 +241,7 @@ void dispatch(const int fdr, const char *c2c, struct worker *workers) {
             to_kill--;
         }
         if (to_kill > 0) {
-            fprintf(stderr, "\b\b[Dispatcher] cannot remove more workers - already at minimum (0)\n> ");
+            fprintf(stderr, "\r\033[K[Dispatcher] cannot remove more workers - already at minimum (0)\n> ");
         }
     }
 }
@@ -239,11 +250,7 @@ struct program_state init_state(const off_t end) {
     struct program_state state;
     state.checked_chunks = 0;
     state.total_occur = 0;
-    if (end < 10*CHUNK_BIG) {
-        state.chunk_size = CHUNK_SMALL;
-    } else {
-        state.chunk_size = CHUNK_BIG;
-    }
+    state.chunk_size = (end < 10 * CHUNK_BIG) ? CHUNK_SMALL : CHUNK_BIG;
     state.total_chunks = (end-1) / state.chunk_size + 1;
     return state;
 }
@@ -349,13 +356,15 @@ int main(int argc, char *argv[]) {
             send_prog(&state);
             sig_prog = 0;
         }
-        cleanup_workers(chunks, workers);
-        read_result(chunks, workers, &state);
-        assign_work(chunks, workers, &state);
+        reap_workers(chunks, workers);
+        read_results(chunks, workers, &state);
+        assign_tasks(chunks, workers, &state);
         dispatch(fdr, c2c, workers);
         usleep(LOOP_WAIT);
     }
     close(fdr);
-    fprintf(stdout, "Program finished!\n");
-    fprintf(stdout, "The character '%s' appears %d times in %s.\n", argv[2], state.total_occur, argv[1]);
+    close(front_pipefd1[0]);
+    close(front_pipefd2[1]);
+    fprintf(stdout, "\r\033[K[Dispatcher] program finished - the character '%s' appears %d time%s in %s\n",
+            argv[2], state.total_occur, (state.total_occur == 1 ? "" : "s"), argv[1]);
 }

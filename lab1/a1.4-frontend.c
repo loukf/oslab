@@ -29,7 +29,7 @@ void sigchld_handler(int signum) {
 }
 
 int ext(int n) {
-    if (kill(p, 9) < 0) {
+    if (kill(p, SIGKILL) < 0) {
         perror("kill");
         exit(-1);
     }
@@ -73,18 +73,6 @@ int parse_with_arg(const char *s, int *x_out) {
     return 0;
 }
 
-void show_pstree(pid_t p) {
-    int ret;
-    char cmd[CHUNK_MSG];
-    snprintf(cmd, sizeof(cmd), "echo; pstree -a -G -c -p %ld; echo", (long)p);
-    cmd[sizeof(cmd)-1] = '\0';
-    ret = system(cmd);
-    if (ret < 0) {
-        perror("system");
-        ext(104);
-    }
-}
-
 void print_worker_list(const int res[MAX_WORKERS][2]) {
     int idle = 0;
     int busy = 0;
@@ -106,6 +94,18 @@ void print_worker_list(const int res[MAX_WORKERS][2]) {
     }
     fprintf(stdout, "└───────────┴────────────┴───────┘\n");
     fprintf(stdout, "Concurrent workers: %d (%d busy, %d idle)\n", busy+idle, busy, idle);
+}
+
+void show_pstree(pid_t p) {
+    int ret;
+    char cmd[CHUNK_MSG];
+    snprintf(cmd, sizeof(cmd), "echo; pstree -a -G -c -p %ld; echo", (long)p);
+    cmd[sizeof(cmd)-1] = '\0';
+    ret = system(cmd);
+    if (ret < 0) {
+        perror("system");
+        ext(104);
+    }
 }
 
 void help(void) {
@@ -159,7 +159,7 @@ void prog(const char *input, const char *c2c) {
         ext(1);
     }
     double percent = ((double)res[0] / (double)res[1]) * 100.0;
-    fprintf(stdout, "Progress: %.2f%% - %d instances of the character '%s' found so far in %s\n", percent, res[2], c2c, input);
+    fprintf(stdout, "Progress: %.2f%% - %d instance%s of the character '%s' found so far in %s\n", percent, res[2], (res[2] == 1 ? "" : "s"), c2c, input);
 }
 
 void create_dispatcher(const char *input, const char *c2c) {
