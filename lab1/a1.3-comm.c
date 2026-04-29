@@ -90,7 +90,7 @@ int main(int argc, char *argv[]) {
             }
             buff[rcnt] = '\0';
             // printf("Child %02d with PID %d: (%d)\t%s\n", i, getpid(), child_count, buff);
-            if (write(pipefd[i][1], &child_count, sizeof(int)) != sizeof(int)) {
+            if (safe_write(pipefd[i][1], &child_count, sizeof(int)) != sizeof(int)) {
                 snprintf(msg, sizeof(msg), "error: cannot write to pipe\n");
                 safe_write(2, msg, strlen(msg));
                 close(pipefd[i][1]);
