@@ -14,7 +14,6 @@ void sigchld_handler(int signum) {
     int status;
     pid_t pid;
     if ((pid = waitpid(p, &status, WNOHANG)) < 0) {
-        perror("wait");
         _exit(1);
     }
     if (pid != p) {

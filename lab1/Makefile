@@ -5,10 +5,10 @@ TARGETS := a1.1-C a1.1-system_calls a1.2.1-fork a1.2.2-fork a1.2.3-fork a1.2.4-f
 
 all: $(TARGETS)
 
-%: %.o
+$(TARGETS): %: %.o utils.o
 	$(CC) $(CFLAGS) $^ -o $@
 
-%.o: %.c
+%.o: %.c utils.h
 	$(CC) $(CFLAGS) -c $< -o $@
 
 clean:

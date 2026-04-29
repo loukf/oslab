@@ -6,29 +6,24 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
-#define CHUNK 1024
+#include "utils.h"
 
 #define WAIT_T 500 * 1000
 
-char msg[CHUNK];
+char msg[1024];
 int active = 0;
 pid_t parent_pid;
 
-void print_err(const char *s) {
-    write(2, s, strlen(s));
-}
-
 void sighandler(int signum) {
     if (getpid() != parent_pid) return;
-    sprintf(msg, "\nSIGINT: %3d child process(es) active\n", active);
-    write(1, msg, strlen(msg));
+    snprintf(msg, sizeof(msg), "\nSIGINT: %3d child process(es) active\n", active);
+    safe_write(1, msg, strlen(msg));
 }
 
 int main(int argc, char *argv[]) {
     if (argc != 4) {
-        sprintf(msg, "Usage: %s <input-file> <output-file> <char>\n", argv[0]);
-        write(2, msg, strlen(msg));
+        snprintf(msg, sizeof(msg), "Usage: %s <input-file> <output-file> <char>\n", argv[0]);
+        safe_write(2, msg, strlen(msg));
         return 1;
     }
     sigset_t sigset;
@@ -38,7 +33,8 @@ int main(int argc, char *argv[]) {
     sa.sa_flags = SA_RESTART;
     sa.sa_mask = sigset;
     if (sigaction(SIGINT, &sa, NULL) < 0) {
-        print_err("error: sigaction failed\n");
+        snprintf(msg, sizeof(msg), "error: sigaction failed\n");
+        safe_write(2, msg, strlen(msg));
         _exit(1);
     }
     parent_pid = getpid();
@@ -47,19 +43,22 @@ int main(int argc, char *argv[]) {
     char c2c = argv[3][0];
     fdr = open(argv[1], O_RDONLY);
     if (fdr < 0) {
-        print_err("error: cannot open file to read\n");
+        snprintf(msg, sizeof(msg), "error: cannot open file to read\n");
+        safe_write(2, msg, strlen(msg));
         _exit(1);
     }
     int pipefd[P][2];
     for (int i = 0; i < P; ++i) {
         if ((pipe(pipefd[i])) < 0) {
-            print_err("error: cannot create pipe\n");
+            snprintf(msg, sizeof(msg), "error: cannot create pipe\n");
+            safe_write(2, msg, strlen(msg));
             _exit(1);
         }
     }
     struct stat st;
     if (fstat(fdr, &st) < 0) {
-        perror("fstat");
+        snprintf(msg, sizeof(msg), "error: fstat failed\n");
+        safe_write(2, msg, strlen(msg));
         exit(1);
     }
     off_t end = st.st_size;
@@ -69,17 +68,19 @@ int main(int argc, char *argv[]) {
         pid_t p = fork();
         usleep(WAIT_T);
         if (p < 0) {
-            print_err("error: cannot fork process\n");
+            snprintf(msg, sizeof(msg), "error: cannot fork process\n");
+            safe_write(2, msg, strlen(msg));
             _exit(1);
         } else if (p == 0) {
             int child_count = 0;
             char buff[chunk_size+1];
             ssize_t rcnt;
-            rcnt = pread(fdr, buff, sizeof(buff)-1, chunk_size*i);
+            rcnt = safe_pread(fdr, buff, sizeof(buff)-1, chunk_size*i);
             if (rcnt == 0) /* end‐of‐file */
                 break;
             if (rcnt < 0) { /* error */
-                print_err("error: problem reading from input file\n");
+                snprintf(msg, sizeof(msg), "error: cannot read from input file\n");
+                safe_write(2, msg, strlen(msg));
                 _exit(1);
             }
             for (int i = 0; i < rcnt; ++i) {
@@ -90,7 +91,8 @@ int main(int argc, char *argv[]) {
             buff[rcnt] = '\0';
             // printf("Child %02d with PID %d: (%d)\t%s\n", i, getpid(), child_count, buff);
             if (write(pipefd[i][1], &child_count, sizeof(int)) != sizeof(int)) {
-                print_err("error: cannot write to pipe\n");
+                snprintf(msg, sizeof(msg), "error: cannot write to pipe\n");
+                safe_write(2, msg, strlen(msg));
                 close(pipefd[i][1]);
                 _exit(1);
             }
@@ -107,7 +109,8 @@ int main(int argc, char *argv[]) {
     for (int i = 0; i < P; ++i) {
         int count;
         if (read(pipefd[i][0], &count, sizeof(int)) != sizeof(int)) {
-            print_err("error: cannot read from pipe\n");
+            snprintf(msg, sizeof(msg), "error: cannot read from pipe\n");
+            safe_write(2, msg, strlen(msg));
             close(pipefd[i][0]);
             _exit(1);
         }
@@ -117,11 +120,12 @@ int main(int argc, char *argv[]) {
     }
     fdw = open(argv[2], O_CREAT | O_WRONLY | O_TRUNC, 0644);
     if (fdw < 0) {
-        print_err("error: problem opening file to write\n");
+        snprintf(msg, sizeof(msg), "error: cannot write to pipe\n");
+        safe_write(2, msg, strlen(msg));
         _exit(1);
     }
-    sprintf(msg, "The character '%c' appears %d times in file %s.\n", c2c, res, argv[1]);
-    write(fdw, msg, strlen(msg));
+    snprintf(msg, sizeof(msg), "The character '%c' appears %d times in file %s.\n", c2c, res, argv[1]);
+    safe_write(fdw, msg, strlen(msg));
     close(fdw);
     return 0;
 }

@@ -5,12 +5,13 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "defines.h"
+#include "utils.h"
 
 int pipefd1[2];
 int pipefd2[2];
 
 void sighandler(int signum) {
-    exit(0);
+    _exit(0);
 }
 
 void work(const int fdr, const char c2c) {

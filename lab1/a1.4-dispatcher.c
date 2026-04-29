@@ -5,7 +5,6 @@
 #include <sys/stat.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 #include <termios.h>
 #include "defines.h"
 
@@ -131,8 +130,9 @@ void kill_worker(struct worker *w) {
 
 void report_dead_worker(const struct worker *w, const int code) {
     tcflush(STDIN_FILENO, TCIFLUSH);
-    fprintf(stderr, "\a\r\033[K[Dispatcher] worker with PID %d exited abnormally (signal %d: %s)\n> ",
-            w->pid, code, strsignal(code));
+    fprintf(stderr, "\a\r\033[K[Dispatcher] worker with PID %d exited abnormally: ", w->pid);
+    psignal(code, NULL);
+    write(1, "> ", 2);
 }
 
 void reap_workers(struct chunk *chunks, struct worker *workers) {
