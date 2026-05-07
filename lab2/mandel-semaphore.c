@@ -158,6 +158,6 @@ int main(int argc, char *argv[]) {
         pthread_join(threads[i], NULL);
     }
 
-reset_xterm_color(1);
-	return 0;
+    reset_xterm_color(1);
+    return 0;
 }
