@@ -106,21 +106,12 @@ void output_mandel_line(int fd, int color_val[]) {
 	}
 }
 
-// void compute_and_output_mandel_line(int fd, int line) {
-// 	/*
-// 	 * A temporary array, used to hold color values for the line being drawn
-// 	 */
-// 	int color_val[x_chars];
-//
-// 	compute_mandel_line(line, color_val);
-// 	output_mandel_line(fd, color_val);
-// }
+/*
+ * draw the Mandelbrot Set, one line at a time.
+ * Output is sent to file descriptor '1', i.e., standard output.
+ */
 
 void *compute_and_output_mandel_line(void *thread_id) {
-    /*
-     * draw the Mandelbrot Set, one line at a time.
-     * Output is sent to file descriptor '1', i.e., standard output.
-     */
     int color_val[x_chars];
     for (int line = (int)(long)thread_id; line < y_chars; line += t) {
         compute_mandel_line(line, color_val);
@@ -130,13 +121,12 @@ void *compute_and_output_mandel_line(void *thread_id) {
             sem_post(&line_sems[line + 1]);
         }
     }
-
     return NULL;
 }
 
 int main(int argc, char *argv[]) {
     if (argc != 2) {
-        fprintf(stderr, "Usage: %s <nthread-count>\n", argv[0]);
+        fprintf(stderr, "Usage: %s <thread-count>\n", argv[0]);
         return 1;
     }
     t = atoi(argv[1]);
@@ -157,6 +147,7 @@ int main(int argc, char *argv[]) {
     for (long i = 0; i < t; ++i) {
         pthread_join(threads[i], NULL);
     }
+    free(line_sems);
 
     reset_xterm_color(1);
     return 0;
