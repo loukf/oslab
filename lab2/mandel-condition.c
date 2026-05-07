@@ -44,8 +44,7 @@ double ystep;
  * This function computes a line of output
  * as an array of x_char color values.
  */
-void compute_mandel_line(int line, int color_val[])
-{
+void compute_mandel_line(int line, int color_val[]) {
 	/*
 	 * x and y traverse the complex plane.
 	 */
@@ -75,8 +74,7 @@ void compute_mandel_line(int line, int color_val[])
  * This function outputs an array of x_char color values
  * to a 256-color xterm.
  */
-void output_mandel_line(int fd, int color_val[])
-{
+void output_mandel_line(int fd, int color_val[]) {
 	int i;
 	
 	char point ='@';
@@ -98,8 +96,7 @@ void output_mandel_line(int fd, int color_val[])
 	}
 }
 
-void compute_and_output_mandel_line(int fd, int line)
-{
+void compute_and_output_mandel_line(int fd, int line) {
 	/*
 	 * A temporary array, used to hold color values for the line being drawn
 	 */
@@ -109,8 +106,11 @@ void compute_and_output_mandel_line(int fd, int line)
 	output_mandel_line(fd, color_val);
 }
 
-int main(void)
-{
+int main(int argc, char *argv[]) {
+    if (argc != 2) {
+        fprintf(stderr, "Usage: %s <nthread-count>\n", argv[0]);
+        return 1;
+    }
 	int line;
 
 	xstep = (xmax - xmin) / x_chars;

@@ -26,6 +26,8 @@
 
 /* Dots indicate lines where you are free to insert code at will */
 /* ... */
+pthread_mutex_t lock;
+/* ... */
 #if defined(SYNC_ATOMIC) ^ defined(SYNC_MUTEX) == 0
 # error You must #define exactly one of SYNC_ATOMIC or SYNC_MUTEX.
 #endif
@@ -46,12 +48,14 @@ void *increase_fn(void *arg)
 		if (USE_ATOMIC_OPS) {
 			/* ... */
 			/* You can modify the following line */
-			++(*ip);
+            __sync_add_and_fetch(ip, 1);
 			/* ... */
 		} else {
 			/* ... */
 			/* You cannot modify the following line */
+            pthread_mutex_lock(&lock);
 			++(*ip);
+            pthread_mutex_unlock(&lock);
 			/* ... */
 		}
 	}
@@ -70,12 +74,14 @@ void *decrease_fn(void *arg)
 		if (USE_ATOMIC_OPS) {
 			/* ... */
 			/* You can modify the following line */
-			--(*ip);
+            __sync_sub_and_fetch(ip, 1);
 			/* ... */
 		} else {
 			/* ... */
 			/* You cannot modify the following line */
+            pthread_mutex_lock(&lock);
 			--(*ip);
+            pthread_mutex_unlock(&lock);
 			/* ... */
 		}
 	}
@@ -87,6 +93,7 @@ void *decrease_fn(void *arg)
 
 int main(int argc, char *argv[])
 {
+    pthread_mutex_init(&lock, NULL);
 	int val, ret, ok;
 	pthread_t t1, t2;
 
