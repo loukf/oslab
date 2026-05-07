@@ -6,7 +6,7 @@ CC = gcc
 
 # CAUTION: Always use '-pthread' when compiling POSIX threads-based
 # applications, instead of linking with "-lpthread" directly.
-CFLAGS = -Wall -O2 -pthread
+CFLAGS = -Wall -O2 -lm -pthread
 LIBS = 
 
 all: pthread-test simplesync-mutex simplesync-atomic mandel
