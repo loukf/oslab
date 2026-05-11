@@ -48,6 +48,10 @@ double ystep;
  * Runtime global variables
  */
 long t;
+int next_line = 0;
+
+pthread_mutex_t print_lock = PTHREAD_MUTEX_INITIALIZER;
+pthread_cond_t print_cond = PTHREAD_COND_INITIALIZER;
 
 /*
  * This function computes a line of output
@@ -90,7 +94,7 @@ void output_mandel_line(int fd, int color_val[]) {
 	char point ='@';
 	char newline='\n';
 
-	for (i = 0; i < x_chars; i++) {
+	for (i = 0; i < x_chars; ++i) {
 		/* Set the current color, then output the point */
 		set_xterm_color(fd, color_val[i]);
 		if (write(fd, &point, 1) != 1) {
@@ -119,11 +123,14 @@ void *compute_and_output_mandel_line(void *thread_id) {
     int color_val[x_chars];
     for (int line = (int)(long)thread_id; line < y_chars; line += t) {
         compute_mandel_line(line, color_val);
-        // sem_wait(&line_sems[line]);
+        pthread_mutex_lock(&print_lock);
+        while (line != next_line) {
+            pthread_cond_wait(&print_cond, &print_lock);
+        }
         output_mandel_line(1, color_val);
-        // if (line + 1 < y_chars) {
-        //     sem_post(&line_sems[line + 1]);
-        // }
+        next_line++;
+        pthread_cond_broadcast(&print_cond);
+        pthread_mutex_unlock(&print_lock);
     }
     return NULL;
 }
@@ -139,11 +146,6 @@ int main(int argc, char *argv[]) {
 	xstep = (xmax - xmin) / x_chars;
 	ystep = (ymax - ymin) / y_chars;
 
-    // line_sems = malloc(sizeof(sem_t) * y_chars);
-    // for (int i = 0; i < y_chars; i++) {
-    //     sem_init(&line_sems[i], 0, (i == 0 ? 1 : 0));
-    // }
-
     for (long i = 0; i < t; ++i) {
         pthread_create(&threads[i], NULL, compute_and_output_mandel_line, (void*)i);
     }
@@ -151,7 +153,9 @@ int main(int argc, char *argv[]) {
     for (long i = 0; i < t; ++i) {
         pthread_join(threads[i], NULL);
     }
-    // free(line_sems);
+
+    pthread_mutex_destroy(&print_lock);
+    pthread_cond_destroy(&print_cond);
 
     reset_xterm_color(1);
     return 0;

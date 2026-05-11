@@ -136,7 +136,7 @@ int main(int argc, char *argv[]) {
 	ystep = (ymax - ymin) / y_chars;
 
     line_sems = malloc(sizeof(sem_t) * y_chars);
-    for (int i = 0; i < y_chars; i++) {
+    for (int i = 0; i < y_chars; ++i) {
         sem_init(&line_sems[i], 0, (i == 0 ? 1 : 0));
     }
 
