@@ -114,7 +114,6 @@ void output_mandel_line(int fd, int color_val[]) {
  * draw the Mandelbrot Set, one line at a time.
  * Output is sent to file descriptor '1', i.e., standard output.
  */
-
 void *compute_and_output_mandel_line(void *thread_id) {
     int color_val[x_chars];
     for (int line = (int)(long)thread_id; line < y_chars; line += t) {
