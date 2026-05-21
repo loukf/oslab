@@ -142,7 +142,7 @@ int main(int argc, char *argv[]) {
 	ystep = (ymax - ymin) / y_chars;
 
     for (int i = 0; i < t; ++i) {
-        pthread_create(&threads[i], NULL, compute_and_output_mandel_line, (void*)i);
+        pthread_create(&threads[i], NULL, compute_and_output_mandel_line, (void*)(long)i);
     }
 
     for (int i = 0; i < t; ++i) {
