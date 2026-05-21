@@ -47,7 +47,7 @@ double ystep;
 /*
  * Runtime global variables
  */
-long t;
+int t;
 int next_line = 0;
 
 pthread_mutex_t print_lock = PTHREAD_MUTEX_INITIALIZER;

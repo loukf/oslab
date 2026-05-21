@@ -47,7 +47,7 @@ sem_t *line_sems;
 /*
  * Runtime global variables
  */
-long t;
+int t;
 
 /*
  * This function computes a line of output
