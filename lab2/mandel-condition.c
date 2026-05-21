@@ -141,11 +141,11 @@ int main(int argc, char *argv[]) {
 	xstep = (xmax - xmin) / x_chars;
 	ystep = (ymax - ymin) / y_chars;
 
-    for (long i = 0; i < t; ++i) {
+    for (int i = 0; i < t; ++i) {
         pthread_create(&threads[i], NULL, compute_and_output_mandel_line, (void*)i);
     }
 
-    for (long i = 0; i < t; ++i) {
+    for (int i = 0; i < t; ++i) {
         pthread_join(threads[i], NULL);
     }
 
