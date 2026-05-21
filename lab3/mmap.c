@@ -39,7 +39,7 @@ uint64_t buffer_size;
  */
 void child(void)
 {
-	// uint64_t pa;
+	uint64_t pa;
 
 	/*
 	 * Step 7 - Child
@@ -49,6 +49,7 @@ void child(void)
 	/*
 	 * TODO: Write your code here to complete child's part of Step 7.
 	 */
+     show_maps();
 
 
 	/*
@@ -59,6 +60,8 @@ void child(void)
 	/*
 	 * TODO: Write your code here to complete child's part of Step 8.
 	 */
+     pa = get_physical_address((uint64_t)heap_private_buf);
+     printf("heap_private_buf virtual address  (child): 0x%lx\n", pa);
 
 
 	/*
@@ -70,6 +73,10 @@ void child(void)
 	 * TODO: Write your code here to complete child's part of Step 9.
 	 */
 
+    heap_private_buf[0] = 'a';
+    pa = get_physical_address((uint64_t)heap_private_buf);
+    printf("heap_private_buf virtual address  (child): 0x%lx\n", pa);
+
 
 	/*
 	 * Step 10 - Child
@@ -79,6 +86,9 @@ void child(void)
 	/*
 	 * TODO: Write your code here to complete child's part of Step 10.
 	 */
+    heap_shared_buf[0] = 'a';
+    pa = get_physical_address((uint64_t)heap_shared_buf);
+    printf("heap_shared_buf virtual address  (child): 0x%lx\n", pa);
 
 
 	/*
@@ -88,7 +98,9 @@ void child(void)
 		die("raise(SIGSTOP)");
 	/*
 	 * TODO: Write your code here to complete child's part of Step 11.
-	 */
+     */
+    heap_shared_buf = mmap(NULL, buffer_size, PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+    show_maps();
 
 
 	/*
@@ -97,6 +109,9 @@ void child(void)
 	/*
 	 * TODO: Write your code here to complete child's part of Step 12.
 	 */
+    munmap(heap_private_buf, buffer_size);
+    munmap(heap_shared_buf, buffer_size);
+    munmap(file_shared_buf, buffer_size);
 }
 
 /*
@@ -104,7 +119,7 @@ void child(void)
  */
 void parent(pid_t child_pid)
 {
-	// uint64_t pa;
+	uint64_t pa;
 	int status;
 
 	/* Wait for the child to raise its first SIGSTOP. */
@@ -121,6 +136,7 @@ void parent(pid_t child_pid)
 	/*
 	 * TODO: Write your code here to complete parent's part of Step 7.
 	 */
+     show_maps();
 
 	if (-1 == kill(child_pid, SIGCONT))
 		die("kill");
@@ -139,6 +155,8 @@ void parent(pid_t child_pid)
 	/*
 	 * TODO: Write your code here to complete parent's part of Step 8.
 	 */
+    pa = get_physical_address((uint64_t)heap_private_buf);
+    printf("heap_private_buf virtual address (parent): 0x%lx\n", pa);
 
 	if (-1 == kill(child_pid, SIGCONT))
 		die("kill");
@@ -157,6 +175,8 @@ void parent(pid_t child_pid)
 	/*
 	 * TODO: Write your code here to complete parent's part of Step 9.
 	 */
+    pa = get_physical_address((uint64_t)heap_private_buf);
+    printf("heap_private_buf virtual address (parent): 0x%lx\n", pa);
 
 	if (-1 == kill(child_pid, SIGCONT))
 		die("kill");
@@ -176,6 +196,8 @@ void parent(pid_t child_pid)
 	/*
 	 * TODO: Write your code here to complete parent's part of Step 10.
 	 */
+    pa = get_physical_address((uint64_t)heap_shared_buf);
+    printf("heap_shared_buf virtual address (parent): 0x%lx\n", pa);
 
 	if (-1 == kill(child_pid, SIGCONT))
 		die("kill");
@@ -191,7 +213,8 @@ void parent(pid_t child_pid)
 	printf(RED "\nStep 11: Disable writing on the shared buffer for the "
 		"child. Verify through the maps for the parent and the "
 		"child.\n" RESET);
-	press_enter();
+    press_enter();
+    show_maps();
 
 	/*
 	 * TODO: Write your code here to complete parent's part of Step 11.
@@ -210,14 +233,17 @@ void parent(pid_t child_pid)
 
 	/*
 	 * TODO: Write your code here to complete parent's part of Step 12.
-	 */
+     */
+    munmap(heap_private_buf, buffer_size);
+    munmap(heap_shared_buf, buffer_size);
+    munmap(file_shared_buf, buffer_size);
 }
 
 int main(void)
 {
 	pid_t mypid, p;
 	int fd = -1;
-	// uint64_t pa;
+	uint64_t pa;
 
 	mypid = getpid();
 	buffer_size = 1 * get_page_size();
@@ -231,6 +257,7 @@ int main(void)
 	/*
 	 * TODO: Write your code here to complete Step 1.
 	 */
+    show_maps();
 
 
 	/*
@@ -243,6 +270,8 @@ int main(void)
 	/*
 	 * TODO: Write your code here to complete Step 2.
 	 */
+    heap_private_buf = mmap(NULL, buffer_size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, fd, 0);
+    show_maps();
 
 
 	/*
@@ -255,6 +284,8 @@ int main(void)
 	/*
 	 * TODO: Write your code here to complete Step 3.
 	 */
+     pa = get_physical_address((uint64_t)heap_private_buf);
+     printf("heap_private_buf virtual address: 0x%lx\n", pa);
 
 
 	/*
@@ -266,6 +297,11 @@ int main(void)
 	/*
 	 * TODO: Write your code here to complete Step 4.
 	 */
+    for (uint64_t i = 0; i < buffer_size; ++i) {
+        heap_private_buf[i] = 0;
+    }
+    pa = get_physical_address((uint64_t)heap_private_buf);
+    printf("heap_private_buf physical address: 0x%lx\n", pa);
 
 
 	/*
@@ -277,7 +313,14 @@ int main(void)
 	press_enter();
 	/*
 	 * TODO: Write your code here to complete Step 5.
-	 */
+     */
+    fd = open("file.txt", O_RDONLY);
+    if (fd < 0) {
+        perror("open");
+        exit(1);
+    }
+    file_shared_buf = mmap(NULL, buffer_size, PROT_READ, MAP_SHARED, fd, 0);
+    printf("%s\n", file_shared_buf);
 
 
 	/*
@@ -291,6 +334,11 @@ int main(void)
 	/*
 	 * TODO: Write your code here to complete Step 6.
 	 */
+    heap_shared_buf = mmap(NULL, buffer_size, PROT_WRITE | PROT_READ, MAP_ANONYMOUS | MAP_SHARED, fd, 0);
+    for (uint64_t i = 0; i < buffer_size; ++i) {
+        heap_shared_buf[i] = 0;
+    }
+    show_maps();
 
 
 	p = fork();
