@@ -99,7 +99,6 @@ void child(void)
 	/*
 	 * TODO: Write your code here to complete child's part of Step 11.
      */
-    heap_shared_buf = mmap(NULL, buffer_size, PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
     show_maps();
 
 
@@ -214,6 +213,7 @@ void parent(pid_t child_pid)
 		"child. Verify through the maps for the parent and the "
 		"child.\n" RESET);
     press_enter();
+    mmap(heap_shared_buf, buffer_size, PROT_READ, MAP_SHARED | MAP_ANONYMOUS | MAP_FIXED, -1, 0);
     show_maps();
 
 	/*
@@ -314,7 +314,7 @@ int main(void)
 	/*
 	 * TODO: Write your code here to complete Step 5.
      */
-    fd = open("file.txt", O_RDONLY);
+    fd = open("file.txt", O_RDWR);
     if (fd < 0) {
         perror("open");
         exit(1);

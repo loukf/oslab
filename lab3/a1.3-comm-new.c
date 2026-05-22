@@ -7,17 +7,20 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/mman.h>
+#include <semaphore.h>
 
 #define WAIT_T 500 * 1000
 
 char msg[1024];
-int active = 0;
 pid_t parent_pid;
+
+sem_t *line_sems;
+int *count;
 
 void sighandler(int signum) {
     (void)signum;
     if (getpid() != parent_pid) return;
-    snprintf(msg, sizeof(msg), "\nSIGINT: %3d child process(es) active\n", active);
+    fprintf(stdout, "\nSIGINT: %d instance%s found so far\n", *count, (*count == 1 ? "" : "s"));
     write(1, msg, strlen(msg));
 }
 
@@ -90,14 +93,12 @@ int main(int argc, char *argv[]) {
         write(2, msg, strlen(msg));
         _exit(1);
     }
-    int pipefd[P][2];
+    unsigned int sems_size = sizeof(sem_t) * P;
+    line_sems = create_shared_memory_area(sems_size);
     for (int i = 0; i < P; ++i) {
-        if ((pipe(pipefd[i])) < 0) {
-            snprintf(msg, sizeof(msg), "error: cannot create pipe\n");
-            write(2, msg, strlen(msg));
-            _exit(1);
-        }
+        sem_init(&line_sems[i], 1, (i == 0 ? 1 : 0));
     }
+    count = create_shared_memory_area(sizeof(int));
     struct stat st;
     if (fstat(fdr, &st) < 0) {
         snprintf(msg, sizeof(msg), "error: fstat failed\n");
@@ -107,7 +108,7 @@ int main(int argc, char *argv[]) {
     off_t end = st.st_size;
     off_t chunk_size = (end-1)/P+1;
     for (int i = 0; i < P; ++i) {
-        active++;
+        int child_count = 0;
         pid_t p = fork();
         usleep(WAIT_T);
         if (p < 0) {
@@ -115,7 +116,6 @@ int main(int argc, char *argv[]) {
             write(2, msg, strlen(msg));
             _exit(1);
         } else if (p == 0) {
-            int child_count = 0;
             char buff[chunk_size+1];
             ssize_t rcnt;
             rcnt = pread(fdr, buff, sizeof(buff)-1, chunk_size*i);
@@ -132,35 +132,21 @@ int main(int argc, char *argv[]) {
                 }
             }
             buff[rcnt] = '\0';
-            // printf("Child %02d with PID %d: (%d)\t%s\n", i, getpid(), child_count, buff);
-            if (write(pipefd[i][1], &child_count, sizeof(int)) != sizeof(int)) {
-                snprintf(msg, sizeof(msg), "error: cannot write to pipe\n");
-                write(2, msg, strlen(msg));
-                close(pipefd[i][1]);
-                _exit(1);
+            sem_wait(&line_sems[i]);
+            *count += child_count;
+            if (i + 1 < P) {
+                sem_post(&line_sems[i + 1]);
             }
-            close(pipefd[i][1]);
             _exit(0);
         }
     }
     close(fdr);
     for (int i = 0; i < P; ++i) {
-        close(pipefd[i][1]);
         wait(NULL);
     }
-    int res = 0;
-    for (int i = 0; i < P; ++i) {
-        int count;
-        if (read(pipefd[i][0], &count, sizeof(int)) != sizeof(int)) {
-            snprintf(msg, sizeof(msg), "error: cannot read from pipe\n");
-            write(2, msg, strlen(msg));
-            close(pipefd[i][0]);
-            _exit(1);
-        }
-        close(pipefd[i][0]);
-        res += count;
-        active--;
-    }
+    int res = *count;
+    destroy_shared_memory_area(count, sizeof(int));
+    destroy_shared_memory_area(line_sems, sems_size);
     fdw = open(argv[2], O_CREAT | O_WRONLY | O_TRUNC, 0644);
     if (fdw < 0) {
         snprintf(msg, sizeof(msg), "error: cannot write to pipe\n");
