@@ -1,1 +1,0 @@
-The character 'r' appears 46153 times in file input2.
