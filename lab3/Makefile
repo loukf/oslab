@@ -1,9 +1,9 @@
 .PHONY: all clean
 
-all: mmap mandel-fork a1.3-comm-new
+all: mmap mandel-fork mandel-fork-nosem a1.3-comm-new
 
 CC = gcc
-CFLAGS = -g -Wall -Wextra -O2 -lm
+CFLAGS = -g -Wall -Wextra -O2 -lm -pthread
 SHELL= /bin/bash
 
 mmap: mmap.o help.o
@@ -24,11 +24,17 @@ a1.3-comm-new: a1.3-comm-new.c
 mandel-fork: mandel-lib.o mandel-fork.o
 	$(CC) $(CFLAGS) -o mandel-fork mandel-lib.o mandel-fork.o $(LIBS)
 
+mandel-fork-nosem: mandel-lib.o mandel-fork-nosem.o
+	$(CC) $(CFLAGS) -o mandel-fork-nosem mandel-lib.o mandel-fork-nosem.o $(LIBS)
+
 mandel-lib.o: mandel-lib.h mandel-lib.c
 	$(CC) $(CFLAGS) -c -o mandel-lib.o mandel-lib.c $(LIBS)
 
 mandel-fork.o: mandel-fork.c
 	$(CC) $(CFLAGS) -c -o mandel-fork.o mandel-fork.c $(LIBS)
 
+mandel-fork-nosem.o: mandel-fork-nosem.c
+	$(CC) $(CFLAGS) -c -o mandel-fork-nosem.o mandel-fork-nosem.c $(LIBS)
+
 clean:
-	rm -f *.s *.o mmap mandel-fork a1.3-comm-new
+	rm -f *.s *.o mmap mandel-fork mandel-fork-nosem a1.3-comm-new
