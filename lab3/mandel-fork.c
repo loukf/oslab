@@ -175,8 +175,7 @@ void destroy_shared_memory_area(void *addr, unsigned int numbytes) {
 	}
 }
 
-int main(int argc, char *argv[])
-{
+int main(int argc, char *argv[]) {
     if (argc != 2) {
         fprintf(stderr, "Usage: %s <process-count>\n", argv[0]);
         return 1;

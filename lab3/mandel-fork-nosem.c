@@ -115,7 +115,7 @@ void output_mandel_line(int fd, int color_val[])
  * draw the Mandelbrot Set, one line at a time.
  * Output is sent to file descriptor '1', i.e., standard output.
  */
-void compute_and_output_mandel_line(int fd, int child_num)
+void compute_and_save_mandel_line(int child_num)
 {
     /*
      * A temporary array, used to hold color values for the line being drawn
@@ -124,14 +124,7 @@ void compute_and_output_mandel_line(int fd, int child_num)
     for (int line = child_num; line < y_chars; line += t) {
         compute_mandel_line(line, color_val);
         memcpy(&buf[line*x_chars], color_val, x_chars*sizeof(int));
-        // sem_wait(&line_sems[line]);
-        // output_mandel_line(fd, color_val);
-        // if (line + 1 < y_chars) {
-        //     sem_post(&line_sems[line + 1]);
-        // }
     }
-    // Shuts up the compiler warning about 'fd' being unused when the output code is commented out
-    (void)fd; 
 }
 
 /*
@@ -180,8 +173,7 @@ void destroy_shared_memory_area(void *addr, unsigned int numbytes) {
     }
 }
 
-int main(int argc, char *argv[])
-{
+int main(int argc, char *argv[]) {
     if (argc != 2) {
         fprintf(stderr, "Usage: %s <process-count>\n", argv[0]);
         return 1;
@@ -199,7 +191,7 @@ int main(int argc, char *argv[])
             perror("fork");
             _exit(1);
         } else if (p == 0) {
-            compute_and_output_mandel_line(1, i);
+            compute_and_save_mandel_line(i);
             exit(0);
         }
     }
