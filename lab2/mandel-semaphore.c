@@ -13,6 +13,7 @@
 #include <stdlib.h>
 #include <pthread.h>
 #include <semaphore.h>
+#include <signal.h>
 
 #include "mandel-lib.h"
 
@@ -48,6 +49,11 @@ sem_t *line_sems;
  * Runtime global variables
  */
 int t;
+
+void sigint_handler(int signum) {
+    reset_xterm_color(1);
+    exit(signum);
+}
 
 /*
  * This function computes a line of output
@@ -110,7 +116,6 @@ void output_mandel_line(int fd, int color_val[]) {
  * draw the Mandelbrot Set, one line at a time.
  * Output is sent to file descriptor '1', i.e., standard output.
  */
-
 void *compute_and_output_mandel_line(void *thread_id) {
     int color_val[x_chars];
     for (int line = (int)(long)thread_id; line < y_chars; line += t) {
@@ -129,6 +134,7 @@ int main(int argc, char *argv[]) {
         fprintf(stderr, "Usage: %s <thread-count>\n", argv[0]);
         return 1;
     }
+    signal(SIGINT, sigint_handler);
     t = atoi(argv[1]);
     pthread_t threads[t];
 

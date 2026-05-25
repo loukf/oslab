@@ -13,6 +13,7 @@
 #include <stdlib.h>
 #include <pthread.h>
 #include <semaphore.h>
+#include <signal.h>
 
 #include "mandel-lib.h"
 
@@ -53,11 +54,15 @@ int next_line = 0;
 pthread_mutex_t print_lock = PTHREAD_MUTEX_INITIALIZER;
 pthread_cond_t print_cond = PTHREAD_COND_INITIALIZER;
 
+void sigint_handler(int signum) {
+    reset_xterm_color(1);
+    exit(signum);
+}
+
 /*
  * This function computes a line of output
  * as an array of x_char color values.
  */
-
 void compute_mandel_line(int line, int color_val[]) {
 	/*
 	 * x and y traverse the complex plane.
@@ -135,6 +140,7 @@ int main(int argc, char *argv[]) {
         fprintf(stderr, "Usage: %s <thread-count>\n", argv[0]);
         return 1;
     }
+    signal(SIGINT, sigint_handler);
     t = atoi(argv[1]);
     pthread_t threads[t];
 
