@@ -117,15 +117,15 @@ void output_mandel_line(int fd, int color_val[]) {
  * Output is sent to file descriptor '1', i.e., standard output.
  */
 void *compute_and_output_mandel_line(void *thread_id) {
+    int id = (int)(long)thread_id;
     int color_val[x_chars];
-    for (int line = (int)(long)thread_id; line < y_chars; line += t) {
+    for (int line = id; line < y_chars; line += t) {
         compute_mandel_line(line, color_val);
-        sem_wait(&line_sems[line]);
+        sem_wait(&line_sems[id]);
         output_mandel_line(1, color_val);
-        if (line + 1 < y_chars) {
-            sem_post(&line_sems[line + 1]);
-        }
+        sem_post(&line_sems[(id + 1) % t]);
     }
+    sem_post(&line_sems[(id + 1) % t]);
     return NULL;
 }
 
@@ -141,8 +141,8 @@ int main(int argc, char *argv[]) {
 	xstep = (xmax - xmin) / x_chars;
 	ystep = (ymax - ymin) / y_chars;
 
-    line_sems = malloc(sizeof(sem_t) * y_chars);
-    for (int i = 0; i < y_chars; ++i) {
+    line_sems = malloc(sizeof(sem_t) * t);
+    for (int i = 0; i < t; ++i) {
         sem_init(&line_sems[i], 0, (i == 0 ? 1 : 0));
     }
 
