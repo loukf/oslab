@@ -121,12 +121,11 @@ void compute_and_output_mandel_line(int fd, int child_num)
 	int color_val[x_chars];
     for (int line = child_num; line < y_chars; line += t) {
         compute_mandel_line(line, color_val);
-        sem_wait(&line_sems[line]);
+        sem_wait(&line_sems[child_num]);
         output_mandel_line(fd, color_val);
-        if (line + 1 < y_chars) {
-            sem_post(&line_sems[line + 1]);
-        }
+        sem_post(&line_sems[(child_num + 1) % t]);
     }
+    sem_post(&line_sems[(child_num + 1) % t]);
 }
 
 /*
@@ -185,9 +184,9 @@ int main(int argc, char *argv[]) {
 	xstep = (xmax - xmin) / x_chars;
 	ystep = (ymax - ymin) / y_chars;
 
-    unsigned int sems_size = sizeof(sem_t) * y_chars;
+    unsigned int sems_size = sizeof(sem_t) * t;
     line_sems = create_shared_memory_area(sems_size);
-    for (int i = 0; i < y_chars; ++i) {
+    for (int i = 0; i < t; ++i) {
         sem_init(&line_sems[i], 1, (i == 0 ? 1 : 0));
     }
 
