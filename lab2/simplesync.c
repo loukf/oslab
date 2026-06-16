@@ -52,8 +52,8 @@ void *increase_fn(void *arg)
 			/* ... */
 		} else {
 			/* ... */
-			/* You cannot modify the following line */
             pthread_mutex_lock(&lock);
+			/* You cannot modify the following line */
 			++(*ip);
             pthread_mutex_unlock(&lock);
 			/* ... */
@@ -78,8 +78,8 @@ void *decrease_fn(void *arg)
 			/* ... */
 		} else {
 			/* ... */
-			/* You cannot modify the following line */
             pthread_mutex_lock(&lock);
+			/* You cannot modify the following line */
 			--(*ip);
             pthread_mutex_unlock(&lock);
 			/* ... */
